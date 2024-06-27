@@ -80,3 +80,83 @@ message* receiveMessage(int sockfd){
   memcpy(msg, buffer, receivedBytes);
  return msg; 
 }
+
+void ackHandler(message* msg){
+
+}
+
+void nackHandler(message* msg){
+
+}
+
+void listHandler(message* msg){
+
+}
+
+void downloadHandler(message* msg){
+
+}
+
+void showHandler(message* msg){
+
+}
+
+void fileInfoHandler(message* msg){
+
+}
+
+void dataHandler(message* msg){
+
+}
+
+void endHandler(message* msg){
+
+}
+
+void errorHandler(message* msg){
+
+}
+
+void answerHandler(message* msg){
+  switch(msg->type){
+    case ACK:
+      ackHandler(msg); 
+
+      break;
+    case NACK:
+      nackHandler(msg); 
+
+      break;
+    case LIST:
+      listHandler(msg); 
+     
+      break;
+    case DOWNLOAD:
+      downloadHandler(msg); 
+     
+      break;
+    case SHOW:
+      showHandler(msg); 
+     
+      break;
+    case FILE_INFO:
+      fileInfoHandler(msg); 
+     
+      break;
+    case DATA:
+      dataHandler(msg); 
+     
+      break;
+    case END:
+      endHandler(msg); 
+     
+      break;
+  case ERROR:
+      errorHandler(msg); 
+
+      break;
+    default:
+      printf(stderr, "invalid message type: %u\n", msg->type);
+      break;
+  }
+}

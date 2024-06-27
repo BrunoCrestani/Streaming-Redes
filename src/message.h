@@ -50,3 +50,20 @@ unsigned int sendMessage(int sockfd, message* msg);
  * to the server
  */
 message* receiveMessage(int sockfd);
+
+void ackHandler(message* msg);
+void nackHandler(message* msg);
+void listHandler(message* msg);
+void downloadHandler(message* msg);
+void showHandler(message* msg);
+void fileInfoHandler(message* msg);
+void dataHandler(message* msg);
+void endHandler(message* msg);
+void errorHandler(message* msg);
+
+/*
+ * Puts the messages type to a switchCase that
+ * will direct the message into its own functions
+ * handler
+ */
+void answerHandler(message* msg);
