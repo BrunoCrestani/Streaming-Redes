@@ -2,6 +2,10 @@
 
 #define MAX_DATA_SIZE 63
 
+
+/*
+ * frame elements unsigned
+ */
 typedef enum {
   ACK = 0x00,
   NACK = 0x01,
@@ -14,6 +18,11 @@ typedef enum {
   ERROR = 0x1F
 } MessageType;
 
+typedef enum {
+  ACCESS_DENIED = 1,
+  NOT_FOUND = 2,
+  DISK_IS_FULL = 3
+} errorType;
 
 typedef struct message {
   uint8_t marker;
@@ -27,7 +36,7 @@ typedef struct message {
 /*
  * Creates a message
  */
-message* createMessage(uint8_t marker, uint8_t size, uint8_t sequence, uint8_t type, uint8_t* data, uint8_t error);
+message* createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t* data, uint8_t error);
 
 /*
  * CRC-8

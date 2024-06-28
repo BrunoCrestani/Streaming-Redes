@@ -5,16 +5,18 @@
 #include <sys/socket.h>
 #include "message.h"
 
+#define INIT_MARKER 0x7E
+
 /*
  * Creates a message
  */
-message* createMessage(uint8_t marker, uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[], uint8_t error){
+message* createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[], uint8_t error){
   message* msg;
 
   if (!(msg = malloc(sizeof(message))))
     return NULL;
 
-  msg->marker = marker;
+  msg->marker = INIT_MARKER;
   msg->size = size;
   msg->sequence = sequence;
   msg->type = type;
@@ -61,6 +63,7 @@ unsigned int sendMessage(int sockfd, message* msg){
   uint8_t buffer[messageSize];
   memcpy(buffer, msg, messageSize);
 
+  //"send" cannot be used in this project, for now is just a representation
   ssize_t sentBytes = send(sockfd, buffer, messageSize, 0);
 
   return (sentBytes == messageSize) ? 0 : -1;
@@ -78,7 +81,7 @@ message* receiveMessage(int sockfd){
   if (receivedBytes <= 0) return NULL;
 
   memcpy(msg, buffer, receivedBytes);
- return msg; 
+  return msg; 
 }
 
 void ackHandler(message* msg){
@@ -114,7 +117,20 @@ void endHandler(message* msg){
 }
 
 void errorHandler(message* msg){
+  switch(msg->error){
+    case ACCESS_DENIED:
 
+      break;
+    case NOT_FOUND:
+    
+      break;
+    case DISK_IS_FULL:
+      printf("User's disk is full. free %uMB before trying to download this title again.\n", msg->size);
+
+      break;
+    default:
+      printf("Unknown Error type %u\n", msg->error);
+  }
 }
 
 void answerHandler(message* msg){
