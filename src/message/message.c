@@ -189,7 +189,7 @@ void answerHandler(message* msg){
 
       break;
     default:
-      printf(stderr, "invalid message type: %u\n", msg->type);
+      fprintf(stderr, "invalid message type: %u\n", msg->type);
       break;
   }
 }

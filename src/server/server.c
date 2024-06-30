@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/socket.h>
 #include "../raw_sockets/sockets.h"
 
 int main(int argc, char* argv[]) {
