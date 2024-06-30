@@ -1,7 +1,9 @@
+#ifndef __MESSAGE__
+#define __MESSAGE__
+
 #include <stdint.h>
 
 #define MAX_DATA_SIZE 63
-
 
 /*
  * frame elements unsigned
@@ -76,3 +78,5 @@ void errorHandler(message* msg);
  * handler
  */
 void answerHandler(message* msg);
+
+#endif

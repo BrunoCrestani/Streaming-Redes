@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include "message.h"
+#include "./../raw_sockets/sockets.h"
 
 #define INIT_MARKER 0x7E
 
@@ -64,7 +65,7 @@ unsigned int sendMessage(int sockfd, message* msg){
   memcpy(buffer, msg, messageSize);
 
   //"send" cannot be used in this project, for now is just a representation
-  ssize_t sentBytes = send(sockfd, buffer, messageSize, 0);
+  ssize_t sentBytes = rawSocketSend(sockfd, buffer, messageSize, 0);
 
   return (sentBytes == messageSize) ? 0 : -1;
 }
@@ -84,18 +85,34 @@ message* receiveMessage(int sockfd){
   return msg; 
 }
 
+/*
+ * When an ACK is received, it will 
+ * call the next  message
+ */
 void ackHandler(message* msg){
 
 }
 
+/*
+ * When an NACK is received the frame
+ * in which the NACK was found is re-sent
+ */
 void nackHandler(message* msg){
 
 }
 
+/*
+ * When an LIST is received the
+ * media array is displayed in the UI
+ * 
+ */
 void listHandler(message* msg){
 
 }
 
+/*
+ * When a DOWNLOAD is received 
+ */
 void downloadHandler(message* msg){
 
 }
