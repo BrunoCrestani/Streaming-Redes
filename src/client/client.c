@@ -26,10 +26,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Imprime o pacote
-    for (int i = 0; i < tamanho; i++) {
-      printf("%02X ", buffer[i]);
-    }
-    printf("\n");
+    printf("Tamanho: %d\n", tamanho);
 
     char *msg = "Hello from client!";
 

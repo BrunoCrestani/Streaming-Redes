@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <stddef.h> 
 #include <net/if.h> 
+#include <unistd.h>
 #include "sockets.h"
 
 unsigned int rawSocketCreator(char* network_interface_name) { 
@@ -61,5 +62,5 @@ unsigned int rawSocketCreator(char* network_interface_name) {
 
 
 unsigned int rawSocketSend(int rsocket, const void *buffer, unsigned int length, int flags){
-  return -1;
+  send(rsocket, buffer, length, flags);
 }
