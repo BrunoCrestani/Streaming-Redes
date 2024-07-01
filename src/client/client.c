@@ -28,9 +28,9 @@ int main(int argc, char* argv[]) {
     // Imprime o pacote
     printf("Tamanho: %d\n", tamanho);
 
-    char *msg = "Hello from client!";
+    char msg[] = "Hello from client!";
 
-    rawSocketSend(rsocket, msg, strlen(msg), 0);
+    rawSocketSend(rsocket, msg, sizeof(msg), 0);
 
     if (strcmp(buffer, "Hello from server!") == 0) {
       printf("Server: %s\n", buffer);
