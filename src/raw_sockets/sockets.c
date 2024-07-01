@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h> 
 #include <arpa/inet.h> 
+#include <unistd.h>
+#include <errno.h>
+
 #include <net/ethernet.h> 
 #include <linux/if_packet.h> 
 #include <sys/types.h>
@@ -59,7 +62,24 @@ unsigned int rawSocketCreator(char* network_interface_name) {
   return rsocket;
 }
 
-
 unsigned int rawSocketSend(int rsocket, const void *buffer, unsigned int length, int flags){
-  return -1;
+  const char *ptr = (const char *)buffer; 
+  size_t totalSent = 0;
+  ssize_t bytesSent;
+
+  while(totalSent < length){
+    bytesSent = send(rsocket, ptr + totalSent, length - totalSent, 0);
+    if (bytesSent < 0){
+      if(errno == EINTR){
+        continue;
+      }
+      return -1;
+    }
+    if (bytesSent == 0){
+      break;
+    }
+    totalSent += bytesSent;
+  }
+  
+  return totalSent;
 }
