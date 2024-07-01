@@ -35,6 +35,12 @@ typedef struct message {
   uint8_t error;
 } message;
 
+typedef struct messageQueue {
+  message* message;
+  struct messageQueue* next;
+
+} messageQueue;
+
 /*
  * Creates a message
  */
