@@ -3,40 +3,42 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <net/ethernet.h> 
+#include <linux/if_packet.h> 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <stddef.h> 
+#include <net/if.h> 
+#include <unistd.h>
+#include <arpa/inet.h> 
+#include <unistd.h>
+#include <errno.h>
 #include "../raw_sockets/sockets.h"
 
-int main(int argc, char* argv[]) {
-  if (argc != 2) {
-    fprintf(stderr, "Uso: %s <interface de rede>\n", argv[0]);
-    exit(-1);
-  }
+int main() {
+    unsigned int rsocket = rawSocketCreator("lo");
 
-  unsigned int rsocket = rawSocketCreator(argv[1]);
+    char *message = "Hello from client";
+    ssize_t message_size = strlen(message);
 
-  // Cria um buffer para armazenar os pacotes
-  unsigned char buffer[65536];
+    struct sockaddr_ll server_addr = {0};
+    server_addr.sll_family = AF_PACKET;
+    server_addr.sll_protocol = htons(ETH_P_ALL);
 
-  while (1) {
-    // Recebe pacotes
-    int tamanho = recv(rsocket, buffer, 65536, 0);
-
-    if (tamanho == -1) {
-      fprintf(stderr, "Erro ao receber pacote\n");
-      exit(-1);
+    // Use loopback interface
+    server_addr.sll_ifindex = if_nametoindex("lo");
+    if (server_addr.sll_ifindex == 0) {
+        perror("Erro ao obter index da interface");
+        exit(-1);
     }
 
-    // Imprime o pacote
-    printf("Tamanho: %d\n", tamanho);
-
-    char msg[] = "Hello from client!";
-
-    rawSocketSend(rsocket, msg, sizeof(msg), 0);
-
-    if (strcmp(buffer, "Hello from server!") == 0) {
-      printf("Server: %s\n", buffer);
-      break;
+    if (sendto(rsocket, message, message_size, 0, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
+        perror("Erro ao enviar mensagem");
+        exit(-1);
     }
-  }
 
-  return 0;
+    printf("Mensagem enviada: %s\n", message);
+
+    close(rsocket);
+    return 0;
 }
