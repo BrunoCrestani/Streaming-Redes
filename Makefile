@@ -15,10 +15,15 @@ SERVER_SRC_FILES := $(shell find $(SRC_DIR)/server -name '*.c')
 CLIENT_SRC_FILES := $(shell find $(SRC_DIR)/client -name '*.c')
 RAW_SOCKETS_SRC_FILES := $(shell find $(RAW_SOCKETS_DIR) -name '*.c')
 
+# all source files inside ./src/*/*.c, except server and client
+ALL_SRC_FILES := $(shell find $(SRC_DIR) -name '*.c' -not -path "$(SRC_DIR)/server/*" -not -path "$(SRC_DIR)/client/*")
+
 # Object files
-SERVER_OBJ_FILES := $(patsubst $(SRC_DIR)/server/%.c, $(OBJ_DIR)/server/%.o, $(SERVER_SRC_FILES))
-CLIENT_OBJ_FILES := $(patsubst $(SRC_DIR)/client/%.c, $(OBJ_DIR)/client/%.o, $(CLIENT_SRC_FILES))
-RAW_SOCKETS_OBJ_FILES := $(patsubst $(RAW_SOCKETS_DIR)/%.c, $(OBJ_DIR)/raw_sockets/%.o, $(RAW_SOCKETS_SRC_FILES))
+SERVER_OBJ_FILES := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SERVER_SRC_FILES))
+CLIENT_OBJ_FILES := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(CLIENT_SRC_FILES))
+RAW_SOCKETS_OBJ_FILES := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(RAW_SOCKETS_SRC_FILES))
+ALL_SRC_OBJ_FILES := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(ALL_SRC_FILES))
+
 
 # Executables
 SERVER_EXECUTABLE = server
@@ -28,25 +33,15 @@ CLIENT_EXECUTABLE = client
 all: $(SERVER_EXECUTABLE) $(CLIENT_EXECUTABLE)
 
 # Server executable
-$(SERVER_EXECUTABLE): $(SERVER_OBJ_FILES) $(RAW_SOCKETS_OBJ_FILES)
+$(SERVER_EXECUTABLE): $(SERVER_OBJ_FILES) $(RAW_SOCKETS_OBJ_FILES) $(ALL_SRC_OBJ_FILES)
 	$(CC) $(CFLAGS) $^ -o $@
 
 # Client executable
-$(CLIENT_EXECUTABLE): $(CLIENT_OBJ_FILES) $(RAW_SOCKETS_OBJ_FILES)
+$(CLIENT_EXECUTABLE): $(CLIENT_OBJ_FILES) $(RAW_SOCKETS_OBJ_FILES) $(ALL_SRC_OBJ_FILES)
 	$(CC) $(CFLAGS) $^ -o $@
 
-# Server object files
-$(OBJ_DIR)/server/%.o: $(SRC_DIR)/server/%.c
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# Client object files
-$(OBJ_DIR)/client/%.o: $(SRC_DIR)/client/%.c
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# Raw sockets object files
-$(OBJ_DIR)/raw_sockets/%.o: $(RAW_SOCKETS_DIR)/%.c
+# Generic rule to compile .c to .o
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 

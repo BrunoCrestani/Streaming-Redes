@@ -14,7 +14,7 @@ messageQueue* tail = NULL;
 /*
  * Puts a new message on the queue
  */
-void enqueueMessage(message *msg){
+void enqueueMessage(Message *msg){
   messageQueue* node = (messageQueue*)malloc(sizeof(messageQueue));
   
   node->message = msg;
@@ -31,11 +31,11 @@ void enqueueMessage(message *msg){
 /*
  * Gets a message out of the queue
  */
-message* dequeueMessage(){
+Message* dequeueMessage(){
   if (head == NULL) return NULL;
 
     messageQueue* temp = head;
-    message* msg = head->message;
+    Message* msg = head->message;
     head = head->next;
     if (head == NULL) tail = NULL;
     free(temp);
@@ -45,10 +45,10 @@ message* dequeueMessage(){
 /*
  * Creates a message
  */
-message* createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[], uint8_t error){
-  message* msg;
+Message* createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[], uint8_t error){
+  Message* msg;
 
-  if (!(msg = malloc(sizeof(message))))
+  if (!(msg = malloc(sizeof(Message))))
     return NULL;
 
   msg->marker = INIT_MARKER;
@@ -61,10 +61,26 @@ message* createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t dat
   return msg;
 }
 
+Message* createFakeMessage() {
+  Message* msg;
+
+  if (!(msg = malloc(sizeof(Message))))
+    return NULL;
+
+  msg->marker = INIT_MARKER;
+  msg->size = 6;
+  msg->sequence = 1;
+  msg->type = 2;
+  memcpy(msg->data, "Hello", 6);
+  msg->error = calculateCRC8("Hello", 6);
+
+  return msg;
+}
+
 /*
  * Deletes a fully acknowledged message
  */
-void deleteMessage(message* msg, unsigned int sizeAck){
+void deleteMessage(Message* msg, unsigned int sizeAck){
   if (sizeAck == msg->size) free(msg);
 }
 
@@ -72,10 +88,10 @@ void deleteMessage(message* msg, unsigned int sizeAck){
  * The process of sending a 
  * message from the server to the user
  */
-unsigned int sendMessage(int sockfd, message* msg){
+unsigned int sendMessage(int sockfd, Message* msg){
   if (msg == NULL) return -1;
   
-  size_t messageSize = sizeof(message) - MAX_DATA_SIZE + msg->size;
+  size_t messageSize = sizeof(Message) - MAX_DATA_SIZE + msg->size;
   uint8_t buffer[messageSize];
   memcpy(buffer, msg, messageSize);
 
@@ -88,11 +104,11 @@ unsigned int sendMessage(int sockfd, message* msg){
  * The process of recieving a message from the user
  * to the server
  */
-message* receiveMessage(int sockfd){
-  uint8_t buffer[sizeof(message)];
+Message* receiveMessage(int sockfd){
+  uint8_t buffer[sizeof(Message)];
   ssize_t receivedBytes = recv(sockfd, buffer, sizeof(buffer), 0);
 
-  message* msg = (message*)malloc(sizeof(message));
+  Message* msg = (Message*)malloc(sizeof(Message));
   if (receivedBytes <= 0) return NULL;
 
   memcpy(msg, buffer, receivedBytes);
@@ -122,7 +138,7 @@ uint8_t calculateCRC8(const uint8_t *data, uint8_t len) {
  * When an ACK is received, it will 
  * call the next  message
  */
-void ackHandler(message* msg){
+void ackHandler(Message* msg){
   if (msg == NULL){
     printf("NULL message received.\n");
     return;
@@ -131,7 +147,7 @@ void ackHandler(message* msg){
 
   deleteMessage(msg, msg->size);
 
-  message* nextMsg = dequeueMessage();
+  Message* nextMsg = dequeueMessage();
 
   if (nextMsg != NULL){
     int sockfd = 0;
@@ -146,7 +162,7 @@ void ackHandler(message* msg){
  * When an NACK is received the frame
  * in which the NACK was found is re-sent
  */
-void nackHandler(message* msg){
+void nackHandler(Message* msg){
   if (msg == NULL){
     printf("NULL message received.\n");
     return;
@@ -170,14 +186,14 @@ void nackHandler(message* msg){
  * media array is displayed in the UI
  * 
  */
-void listHandler(message* msg){
+void listHandler(Message* msg){
 
 }
 
 /*
  * When a DOWNLOAD is received 
  */
-void downloadHandler(message* msg){
+void downloadHandler(Message* msg){
 
 }
 
@@ -185,35 +201,35 @@ void downloadHandler(message* msg){
  * when a SHOW is received 
  *    
  */
-void showHandler(message* msg){
+void showHandler(Message* msg){
 
 }
 
 /*
  *
  */
-void fileInfoHandler(message* msg){
+void fileInfoHandler(Message* msg){
 
 }
 
 /*
  *
  */
-void dataHandler(message* msg){
+void dataHandler(Message* msg){
 
 }
 
 /*
  *
  */
-void endHandler(message* msg){
+void endHandler(Message* msg){
     
 }
 
 /*
  *
  */
-void errorHandler(message* msg){
+void errorHandler(Message* msg){
   switch(msg->error){
     case ACCESS_DENIED:
       printf("Acess Denied");
@@ -237,7 +253,7 @@ void errorHandler(message* msg){
  * using its type to get it properly 
  * handled
  */
-void answerHandler(message* msg){
+void answerHandler(Message* msg){
   switch(msg->type){
     case ACK:
       ackHandler(msg); 

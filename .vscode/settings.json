@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "sockets.h": "c"
+        "sockets.h": "c",
+        "message.h": "c",
+        "errno.h": "c"
     }
 }

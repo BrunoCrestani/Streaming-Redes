@@ -14,12 +14,12 @@
 #include <unistd.h>
 #include <errno.h>
 #include "../raw_sockets/sockets.h"
+#include "../message/message.h"
 
 int main() {
     unsigned int rsocket = rawSocketCreator("lo");
 
-    char *message = "Hello from client";
-    ssize_t message_size = strlen(message);
+    Message* message = createMessage(6, 1, 2, "Hello", 0);
 
     struct sockaddr_ll server_addr = {0};
     server_addr.sll_family = AF_PACKET;
@@ -32,12 +32,12 @@ int main() {
         exit(-1);
     }
 
-    if (sendto(rsocket, message, message_size, 0, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
+    if (sendto(rsocket, message, sizeof(Message), 0, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
         perror("Erro ao enviar mensagem");
         exit(-1);
     }
 
-    printf("Mensagem enviada: %s\n", message);
+    printf("Mensagem enviada\n");
 
     close(rsocket);
     return 0;
