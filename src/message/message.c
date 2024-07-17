@@ -67,11 +67,11 @@ Message* createFakeMessage() {
     return NULL;
 
   msg->marker = INIT_MARKER;
-  msg->size = 6;
+  msg->size = 16;
   msg->sequence = 1;
   msg->type = 2;
-  memcpy(msg->data, "Hello", 6);
-  msg->error = calculateCRC8("Hello", 6);
+  memcpy(msg->data, "Hello, World!!!", 16);
+  msg->error = calculateCRC8("Hello, World!!!", 16);
 
   return msg;
 }
@@ -93,10 +93,9 @@ int sendMessage(int sockfd, Message* msg){
   size_t messageSize = sizeof(Message) - MAX_DATA_SIZE + msg->size;
   uint8_t buffer[messageSize];
   memcpy(buffer, msg, messageSize);
+  unsigned int sentBytes = rawSocketSend(sockfd, buffer, messageSize, 0);
 
-  ssize_t sentBytes = rawSocketSend(sockfd, buffer, messageSize, 0);
-
-  return (sentBytes == messageSize) ? 0 : -1;
+  return sentBytes
 }
 
 /*
@@ -108,7 +107,7 @@ Message* receiveMessage(int sockfd){
   ssize_t receivedBytes = recv(sockfd, buffer, sizeof(buffer), 0);
 
   Message* msg = (Message*)malloc(sizeof(Message));
-  if (receivedBytes <= 0) return NULL;
+  if (receivedBytes <= 0 || msg == NULL) return NULL;
 
   memcpy(msg, buffer, receivedBytes);
   if (msg->marker != INIT_MARKER) return NULL;

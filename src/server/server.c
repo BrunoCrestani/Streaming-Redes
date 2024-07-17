@@ -12,14 +12,13 @@
 #include "../message/message.h"
 
 int main() {
-    int rsocket = rawSocketCreator("lo");
+    int rsocket = rawSocketCreator("eno1");
 
     while (1) {
         Message* receivedBytes = receiveMessage(rsocket);
-
         if (receivedBytes == NULL) {
             perror("Erro ao receber mensagem");
-            exit(-1);
+            exit(1);
         }
 
         printf("Mensagem recebida: %s\n", receivedBytes->data);

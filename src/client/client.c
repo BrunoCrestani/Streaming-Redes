@@ -17,7 +17,7 @@
 #include "../message/message.h"
 
 int main() {
-    unsigned int rsocket = rawSocketCreator("eno1`");
+    int rsocket = rawSocketCreator("enp3s0f3u3");
     Message* msg = createFakeMessage();
 
     while (1) {
@@ -25,7 +25,6 @@ int main() {
 
         if (!sentBytes) {
             perror("Erro ao enviar mensagem");
-            exit(-1);
         }
     }
 
