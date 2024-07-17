@@ -22,6 +22,13 @@ int main() {
         }
 
         printf("Mensagem recebida: %s\n", receivedBytes->data);
+
+        switch (receivedBytes->type)
+        {
+            case DOWNLOAD:
+                printf("Tipo: DOWNLOAD\n");
+                break;
+        }
     }
 
     return 0;

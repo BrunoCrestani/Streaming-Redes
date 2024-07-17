@@ -69,7 +69,7 @@ Message* createFakeMessage() {
   msg->marker = INIT_MARKER;
   msg->size = 16;
   msg->sequence = 1;
-  msg->type = 2;
+  msg->type = DOWNLOAD;
   memcpy(msg->data, "Hello, World!!!", 16);
   msg->error = calculateCRC8("Hello, World!!!", 16);
 
