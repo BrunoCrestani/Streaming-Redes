@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #define MAX_DATA_SIZE 63
+#define INIT_MARKER 0x7E
 
 /*
  * frame elements unsigned

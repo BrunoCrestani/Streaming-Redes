@@ -6,7 +6,6 @@
 #include "message.h"
 #include "./../raw_sockets/sockets.h"
 
-#define INIT_MARKER 0x7E
 
 messageQueue* head = NULL;
 messageQueue* tail = NULL;
@@ -101,7 +100,7 @@ unsigned int sendMessage(int sockfd, Message* msg){
 }
 
 /*
- * The process of recieving a message from the user
+ * The process of receiving a message from the user
  * to the server
  */
 Message* receiveMessage(int sockfd){
@@ -112,6 +111,7 @@ Message* receiveMessage(int sockfd){
   if (receivedBytes <= 0) return NULL;
 
   memcpy(msg, buffer, receivedBytes);
+  if (msg->marker != INIT_MARKER) return NULL;
   return msg; 
 }
 
