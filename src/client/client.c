@@ -17,17 +17,17 @@
 #include "../message/message.h"
 
 int main() {
-    unsigned int rsocket = rawSocketCreator("lo");
+    unsigned int rsocket = rawSocketCreator("eno1`");
     Message* msg = createFakeMessage();
 
     while (1) {
-        Message* sentBytes = sendMessage(rsocket, msg);
+        int sentBytes = sendMessage(rsocket, msg);
 
-        if (sentBytes == NULL) {
+        if (!sentBytes) {
             perror("Erro ao enviar mensagem");
             exit(-1);
         }
     }
-    
+
     return 0;
 }

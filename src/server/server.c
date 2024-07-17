@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <net/if.h> 
 #include <arpa/inet.h> 
+#include "../raw_sockets/sockets.h"
 #include "../message/message.h"
 
 int main() {
@@ -24,6 +25,5 @@ int main() {
         printf("Mensagem recebida: %s\n", receivedBytes->data);
     }
 
-    close(rsocket);
     return 0;
 }

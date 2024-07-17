@@ -63,7 +63,7 @@ void deleteMessage(Message* msg, unsigned int sizeAck);
  * The process of sending a 
  * message from the server to the user
  */
-unsigned int sendMessage(int sockfd, Message* msg);
+int sendMessage(int sockfd, Message* msg);
 
 /*
  * The process of recieving a message from the user

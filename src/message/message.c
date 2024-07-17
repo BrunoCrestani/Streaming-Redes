@@ -87,7 +87,7 @@ void deleteMessage(Message* msg, unsigned int sizeAck){
  * The process of sending a 
  * message from the server to the user
  */
-unsigned int sendMessage(int sockfd, Message* msg){
+int sendMessage(int sockfd, Message* msg){
   if (msg == NULL) return -1;
   
   size_t messageSize = sizeof(Message) - MAX_DATA_SIZE + msg->size;
