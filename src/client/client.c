@@ -16,6 +16,19 @@
 #include "../raw_sockets/sockets.h"
 #include "../message/message.h"
 
+void appendFile(char* filename, uint8_t* data, uint8_t size) {
+    FILE* file = fopen(filename, "a+");
+
+    if (file == NULL) {
+        perror("Erro ao abrir arquivo");
+        return;
+    }
+
+    fwrite(data, 1, size, file);
+
+    fclose(file);
+}
+
 int main() {
     int rsocket = rawSocketCreator("enp3s0f3u3");
     Message* msg = createFakeMessage();
@@ -25,6 +38,19 @@ int main() {
 
         if (!sentBytes) {
             perror("Erro ao enviar mensagem");
+        }
+
+        Message* receivedBytes = receiveMessage(rsocket);
+
+        if (receivedBytes == NULL) {
+            perror("Erro ao receber mensagem");
+        }
+
+        switch (receivedBytes->type)
+        {
+            case DATA:
+                appendFile("README.md", receivedBytes->data, receivedBytes->size);
+                break;
         }
     }
 

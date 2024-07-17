@@ -11,14 +11,36 @@
 #include "../raw_sockets/sockets.h"
 #include "../message/message.h"
 
+void sendFile(int rsocket, char* filename) {
+    FILE* file = fopen(filename, "r");
+
+    if (file == NULL) {
+        perror("Erro ao abrir arquivo");
+        return;
+    }
+
+    fseek(file, 0, SEEK_END);
+
+    char buff[63];
+    int bytesRead = 0;
+    int sequence = 0;
+    while ((bytesRead = fread(buff, 1, 63, file)) > 0) {
+        Message* msg = createMessage(bytesRead, sequence, DATA, buff, 0);
+        rawSocketSend(rsocket, msg, sizeof(Message), 0);
+        sequence++;
+    }
+
+    fclose(file);
+}
+
 int main() {
     int rsocket = rawSocketCreator("eno1");
 
     while (1) {
         Message* receivedBytes = receiveMessage(rsocket);
+
         if (receivedBytes == NULL) {
             perror("Erro ao receber mensagem");
-            exit(1);
         }
 
         printf("Mensagem recebida: %s\n", receivedBytes->data);
@@ -26,7 +48,7 @@ int main() {
         switch (receivedBytes->type)
         {
             case DOWNLOAD:
-                printf("Tipo: DOWNLOAD\n");
+                sendFile(rsocket, "README.md");
                 break;
         }
     }
