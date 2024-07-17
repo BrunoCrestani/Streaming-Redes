@@ -95,7 +95,7 @@ int sendMessage(int sockfd, Message* msg){
   memcpy(buffer, msg, messageSize);
   unsigned int sentBytes = rawSocketSend(sockfd, buffer, messageSize, 0);
 
-  return sentBytes
+  return sentBytes;
 }
 
 /*
