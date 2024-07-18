@@ -44,7 +44,7 @@ Message* dequeueMessage(){
 /*
  * Creates a message
  */
-Message* createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[], uint8_t error){
+Message* createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[]){
   Message* msg;
 
   if (!(msg = malloc(sizeof(Message))))

@@ -8,10 +8,12 @@
 #include <sys/types.h>
 #include <net/if.h> 
 #include <arpa/inet.h> 
+#include <unistd.h>
 #include "../raw_sockets/sockets.h"
 #include "../message/message.h"
 
 void sendFile(int rsocket, char* filename) {
+    sleep(5); // Espera o cliente começar a escutar
     FILE* file = fopen(filename, "r");
 
     if (file == NULL) {
@@ -19,15 +21,16 @@ void sendFile(int rsocket, char* filename) {
         return;
     }
 
-    fseek(file, 0, SEEK_END);
-
     char buff[63];
     int bytesRead = 0;
     int sequence = 0;
+    sendMessage(rsocket, createMessage(strlen(filename) + 1, sequence, FILE_INFO, filename));
+
     while ((bytesRead = fread(buff, 1, 63, file)) > 0) {
-        Message* msg = createMessage(bytesRead, sequence, DATA, buff, 0);
-        rawSocketSend(rsocket, msg, sizeof(Message), 0);
         sequence++;
+        printf("Enviando %s\n", buff);
+        Message*msg = createMessage(bytesRead, sequence, DATA, buff);
+        sendMessage(rsocket, msg);
     }
 
     fclose(file);
@@ -41,6 +44,7 @@ int main() {
 
         if (receivedBytes == NULL) {
             perror("Erro ao receber mensagem");
+            continue;
         }
 
         printf("Mensagem recebida: %s\n", receivedBytes->data);
@@ -48,6 +52,7 @@ int main() {
         switch (receivedBytes->type)
         {
             case DOWNLOAD:
+                printf("Enviando arquivo\n");
                 sendFile(rsocket, "README.md");
                 break;
         }
