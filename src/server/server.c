@@ -74,6 +74,12 @@ void sendFile(int rsocket, char *filename)
         {
             printf("ACK recebido: %d\n", receivedBytes->sequence);
             Message *firstOfWindow = peekMessage();
+            
+            if (firstOfWindow == NULL)
+            {
+                break;
+            }
+
             if (receivedBytes->sequence == firstOfWindow->sequence)
             {
                 printf("Movendo janela\n");
@@ -83,7 +89,7 @@ void sendFile(int rsocket, char *filename)
 
                 if (bytesRead == 0)
                 {
-                    break;
+                    continue; // EOF
                 }
 
                 Message *msg = createMessage(bytesRead, sequence, DATA, buff);
