@@ -45,14 +45,6 @@ Message* peekMessage(){
   return head->message;
 }
 
-void printQueue(){
-  messageQueue* temp = head;
-  while(temp != NULL){
-    printf("Message ID: %d\n", temp->message->sequence);
-    temp = temp->next;
-  }
-}
-
 void sendQueue(int sockfd){
   messageQueue* temp = head;
   while(temp != NULL){

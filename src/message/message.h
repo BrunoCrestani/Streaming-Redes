@@ -88,4 +88,12 @@ void errorHandler(Message* msg);
  */
 void answerHandler(Message* msg);
 
+/*
+ * Enqueues a message to the messageQueue
+ */
+void enqueueMessage(Message *msg);
+Message* dequeueMessage();
+Message* peekMessage();
+void sendQueue(int sockfd);
+
 #endif
