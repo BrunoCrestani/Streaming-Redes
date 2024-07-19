@@ -30,8 +30,7 @@ void sendFile(int rsocket, char *filename)
     }
 
     char buff[63];
-    int bytesRead = 0;
-    int sequence = 0;
+    size_t bytesRead = 0;
     const int windowSize = 4;
 
     for (int i = 0; i < windowSize; i++)
@@ -43,16 +42,17 @@ void sendFile(int rsocket, char *filename)
             break;
         }
 
-        Message *msg = createMessage(bytesRead, sequence % windowSize, DATA, buff);
+        Message *msg = createMessage(bytesRead, i, DATA, buff);
         enqueueMessage(msg);
-        sequence++;
     }
+
+    int sequence = 0;
 
     printQueue();
 
     long long start = timestamp();
     sendQueue(rsocket);
-    long long timeoutMillis = 2000;
+    long long timeoutMillis = 4000;
 
     struct timeval tv = { .tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000 };
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv); // set new options
@@ -91,9 +91,9 @@ void sendFile(int rsocket, char *filename)
             {
                 printf("Movendo janela...\n");
                 start = timestamp();
-                Message* toSend = dequeueMessage();
+                dequeueMessage();
                 
-                sendMessage(rsocket, toSend);                
+                sendMessage(rsocket, firstOfWindow);                
 
                 bytesRead = fread(buff, 1, 63, file);
 
