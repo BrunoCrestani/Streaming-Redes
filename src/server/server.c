@@ -54,6 +54,9 @@ void sendFile(int rsocket, char *filename)
     sendQueue(rsocket);
     long long timeoutMillis = 2000;
 
+    struct timeval tv = { .tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000 };
+    setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv); // set new options
+
     while (1)
     {
         Message *receivedBytes = receiveMessage(rsocket);
