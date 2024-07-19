@@ -48,7 +48,16 @@ Message* peekMessage(){
 void sendQueue(int sockfd){
   messageQueue* temp = head;
   while(temp != NULL){
-    sendMessage(sockfd, temp->message);
+    int sentBytes = sendMessage(sockfd, temp->message);
+    printf("Message sent: ID: %d\n", temp->message->sequence);
+    temp = temp->next;
+  }
+}
+
+void printQueue(){
+  messageQueue* temp = head;
+  while(temp != NULL){
+    printf("Message ID: %d\n", temp->message->sequence);
     temp = temp->next;
   }
 }
@@ -116,9 +125,12 @@ int sendMessage(int sockfd, Message* msg){
  */
 Message* receiveMessage(int sockfd){
   uint8_t buffer[sizeof(Message)];
-  ssize_t receivedBytes = recv(sockfd, buffer, sizeof(buffer), 0);
+  printf("Waiting for message...\n");
+  ssize_t receivedBytes = recv(sockfd, buffer, sizeof(Message), 0);
+  printf("Message received\n");
 
   Message* msg = (Message*)malloc(sizeof(Message));
+
   if (receivedBytes <= 0 || msg == NULL) return NULL;
 
   memcpy(msg, buffer, receivedBytes);

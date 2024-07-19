@@ -80,6 +80,7 @@ void fileInfoHandler(Message* msg);
 void dataHandler(Message* msg);
 void endHandler(Message* msg);
 void errorHandler(Message* msg);
+void printQueue();
 
 /*
  * Puts the messages type to a switchCase that

@@ -32,7 +32,7 @@ void sendFile(int rsocket, char *filename)
     char buff[63];
     int bytesRead = 0;
     int sequence = 0;
-    const int windowSize = 2;
+    const int windowSize = 4;
 
     for (int i = 0; i < windowSize; i++)
     {
@@ -43,17 +43,22 @@ void sendFile(int rsocket, char *filename)
             break;
         }
 
-        Message *msg = createMessage(bytesRead, sequence, DATA, buff);
+        Message *msg = createMessage(bytesRead, sequence % windowSize, DATA, buff);
         enqueueMessage(msg);
         sequence++;
     }
 
-    sendQueue(rsocket);
+    printQueue();
+
     long long start = timestamp();
-    long long timeoutMillis = 5000;
+    sendQueue(rsocket);
+    long long timeoutMillis = 2000;
 
     while (1)
     {
+        Message *receivedBytes = receiveMessage(rsocket);
+
+        printf("%lld", timestamp() - start);
 
         if (timestamp() - start > timeoutMillis)
         {
@@ -62,19 +67,18 @@ void sendFile(int rsocket, char *filename)
             start = timestamp();
         }
 
-        Message *receivedBytes = receiveMessage(rsocket);
-
         if (receivedBytes == NULL)
         {
-            fprintf(stderr, "Erro ao receber mensagem");
+            fprintf(stderr, "Erro ao receber mensagem\n");
             continue;
         }
 
         if (receivedBytes->type == ACK)
         {
-            printf("ACK recebido: %d\n", receivedBytes->sequence);
+            printQueue();
+
             Message *firstOfWindow = peekMessage();
-            
+
             if (firstOfWindow == NULL)
             {
                 break;
@@ -82,9 +86,12 @@ void sendFile(int rsocket, char *filename)
 
             if (receivedBytes->sequence == firstOfWindow->sequence)
             {
-                printf("Movendo janela\n");
+                printf("Movendo janela...\n");
                 start = timestamp();
-                dequeueMessage();
+                Message* toSend = dequeueMessage();
+                
+                sendMessage(rsocket, toSend);                
+
                 bytesRead = fread(buff, 1, 63, file);
 
                 if (bytesRead == 0)
@@ -92,12 +99,14 @@ void sendFile(int rsocket, char *filename)
                     continue; // EOF
                 }
 
-                Message *msg = createMessage(bytesRead, sequence, DATA, buff);
+                Message *msg = createMessage(bytesRead, sequence % windowSize, DATA, buff);
                 enqueueMessage(msg);
                 sequence++;
             }
         }
     }
+
+    printf("Arquivo enviado\n");
 
     fclose(file);
 }
@@ -112,7 +121,7 @@ int main()
 
         if (receivedBytes == NULL)
         {
-            perror("Erro ao receber mensagem");
+            // perror("Erro ao receber mensagem");
             continue;
         }
 
