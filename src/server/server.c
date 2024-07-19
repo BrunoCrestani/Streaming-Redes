@@ -3,20 +3,28 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <net/ethernet.h> 
-#include <linux/if_packet.h> 
+#include <net/ethernet.h>
+#include <linux/if_packet.h>
 #include <sys/types.h>
-#include <net/if.h> 
-#include <arpa/inet.h> 
+#include <net/if.h>
+#include <arpa/inet.h>
 #include <unistd.h>
+#include <sys/time.h>
 #include "../raw_sockets/sockets.h"
 #include "../message/message.h"
 
-void sendFile(int rsocket, char* filename) {
-    sleep(5); // Espera o cliente começar a escutar
-    FILE* file = fopen(filename, "r");
+long long timestamp() {
+    struct timeval tp;
+    gettimeofday(&tp, NULL);
+    return tp.tv_sec*1000 + tp.tv_usec/1000;
+}
 
-    if (file == NULL) {
+void sendFile(int rsocket, char *filename)
+{
+    FILE *file = fopen(filename, "r");
+
+    if (file == NULL)
+    {
         perror("Erro ao abrir arquivo");
         return;
     }
@@ -24,25 +32,80 @@ void sendFile(int rsocket, char* filename) {
     char buff[63];
     int bytesRead = 0;
     int sequence = 0;
-    sendMessage(rsocket, createMessage(strlen(filename) + 1, sequence, FILE_INFO, filename));
+    const int windowSize = 2;
 
-    while ((bytesRead = fread(buff, 1, 63, file)) > 0) {
+    for (int i = 0; i < windowSize; i++)
+    {
+        bytesRead = fread(buff, 1, 63, file);
+
+        if (bytesRead == 0)
+        {
+            break;
+        }
+
+        Message *msg = createMessage(bytesRead, sequence, DATA, buff);
+        enqueueMessage(msg);
         sequence++;
-        printf("Enviando %s\n", buff);
-        Message*msg = createMessage(bytesRead, sequence, DATA, buff);
-        sendMessage(rsocket, msg);
+    }
+
+    sendQueue(rsocket);
+    long long start = timestamp();
+    long long timeoutMillis = 5000;
+
+    while (1)
+    {
+
+        if (timestamp() - start > timeoutMillis)
+        {
+            printf("Timeout\n");
+            sendQueue(rsocket);
+            start = timestamp();
+        }
+
+        Message *receivedBytes = receiveMessage(rsocket);
+
+        if (receivedBytes == NULL)
+        {
+            fprintf(stderr, "Erro ao receber mensagem");
+            continue;
+        }
+
+        if (receivedBytes->type == ACK)
+        {
+            printf("ACK recebido: %d\n", receivedBytes->sequence);
+            Message *firstOfWindow = peekMessage();
+            if (receivedBytes->sequence == firstOfWindow->sequence)
+            {
+                printf("Movendo janela\n");
+                start = timestamp();
+                dequeueMessage();
+                bytesRead = fread(buff, 1, 63, file);
+
+                if (bytesRead == 0)
+                {
+                    break;
+                }
+
+                Message *msg = createMessage(bytesRead, sequence, DATA, buff);
+                enqueueMessage(msg);
+                sequence++;
+            }
+        }
     }
 
     fclose(file);
 }
 
-int main() {
+int main()
+{
     int rsocket = rawSocketCreator("eno1");
 
-    while (1) {
-        Message* receivedBytes = receiveMessage(rsocket);
+    while (1)
+    {
+        Message *receivedBytes = receiveMessage(rsocket);
 
-        if (receivedBytes == NULL) {
+        if (receivedBytes == NULL)
+        {
             perror("Erro ao receber mensagem");
             continue;
         }
@@ -51,10 +114,10 @@ int main() {
 
         switch (receivedBytes->type)
         {
-            case DOWNLOAD:
-                printf("Enviando arquivo\n");
-                sendFile(rsocket, "README.md");
-                break;
+        case DOWNLOAD:
+            printf("Enviando arquivo\n");
+            sendFile(rsocket, "README.md");
+            break;
         }
     }
 

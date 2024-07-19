@@ -34,13 +34,13 @@ void appendFile(char *filename, uint8_t *data, uint8_t size)
 int main()
 {
     int rsocket = rawSocketCreator("enp3s0f3u3");
-    Message *msg = createFakeMessage();
-
+    Message *msg = createFakeMessage(); // createMessage(16, 0, DOWNLOAD, "README.md");
+    int expectedSequence = 0;
     int sentBytes = sendMessage(rsocket, msg);
 
     if (!sentBytes)
     {
-        perror("Erro ao enviar mensagem");
+        fprintf(stderr, "Erro ao enviar mensagem");
     }
 
     while (1)
@@ -49,13 +49,26 @@ int main()
 
         if (receivedBytes == NULL)
         {
-            perror("Erro ao receber mensagem");
+            fprintf(stderr, "Erro ao receber mensagem");
         }
 
         switch (receivedBytes->type)
         {
         case DATA:
-            appendFile("README.md", receivedBytes->data, receivedBytes->size);
+            if (receivedBytes->sequence == expectedSequence)
+            {
+                printf("Received message with sequence %d\n", receivedBytes->sequence);
+                appendFile("README.md", receivedBytes->data, receivedBytes->size);
+                Message* ack = createMessage(16, expectedSequence, ACK, "Hello, World!!!");
+                expectedSequence++;
+                sendMessage(rsocket, ack);
+            } else {
+                printf("Received out of order message\n");
+                Message* ack = createMessage(16, expectedSequence - 1, ACK, "Hello, World!!!");
+                sendMessage(rsocket, ack);
+            }
+
+            // appendFile("README.md", receivedBytes->data, receivedBytes->size);
             break;
         }
     }

@@ -26,7 +26,6 @@ void enqueueMessage(Message *msg){
     tail = node;
   }
 }
-
 /*
  * Gets a message out of the queue
  */
@@ -39,6 +38,27 @@ Message* dequeueMessage(){
     if (head == NULL) tail = NULL;
     free(temp);
     return msg;
+}
+
+Message* peekMessage(){
+  if (head == NULL) return NULL;
+  return head->message;
+}
+
+void printQueue(){
+  messageQueue* temp = head;
+  while(temp != NULL){
+    printf("Message ID: %d\n", temp->message->sequence);
+    temp = temp->next;
+  }
+}
+
+void sendQueue(int sockfd){
+  messageQueue* temp = head;
+  while(temp != NULL){
+    sendMessage(sockfd, temp->message);
+    temp = temp->next;
+  }
 }
 
 /*
