@@ -32,6 +32,7 @@ void sendFile(int rsocket, char *filename)
     char buff[63];
     size_t bytesRead = 0;
     const int windowSize = 4;
+    int sequence = 0;
 
     for (int i = 0; i < windowSize; i++)
     {
@@ -44,28 +45,23 @@ void sendFile(int rsocket, char *filename)
 
         Message *msg = createMessage(bytesRead, i, DATA, buff);
         enqueueMessage(msg);
+        sequence++;
     }
 
-    int sequence = 0;
-
-    printQueue();
-
     long long start = timestamp();
-    sendQueue(rsocket);
-    long long timeoutMillis = 4000;
+    long long timeoutMillis = 5000;
 
     struct timeval tv = { .tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000 };
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv); // set new options
 
-    while (1)
+    sendQueue(rsocket);
+    while (!isEmpty())
     {
         Message *receivedBytes = receiveMessage(rsocket);
 
-        printf("%lld", timestamp() - start);
-
         if (timestamp() - start > timeoutMillis)
         {
-            printf("Timeout\n");
+            printf("\nTimeouted!!!\n");
             sendQueue(rsocket);
             start = timestamp();
         }
@@ -76,10 +72,9 @@ void sendFile(int rsocket, char *filename)
             continue;
         }
 
+
         if (receivedBytes->type == ACK)
         {
-            printQueue();
-
             Message *firstOfWindow = peekMessage();
 
             if (firstOfWindow == NULL)
@@ -93,8 +88,6 @@ void sendFile(int rsocket, char *filename)
                 start = timestamp();
                 dequeueMessage();
                 
-                sendMessage(rsocket, firstOfWindow);                
-
                 bytesRead = fread(buff, 1, 63, file);
 
                 if (bytesRead == 0)
@@ -102,9 +95,10 @@ void sendFile(int rsocket, char *filename)
                     continue; // EOF
                 }
 
-                Message *msg = createMessage(bytesRead, sequence % windowSize, DATA, buff);
-                enqueueMessage(msg);
+                Message *msg = createMessage(bytesRead, sequence % 32, DATA, buff);
                 sequence++;
+                enqueueMessage(msg);
+                sendMessage(rsocket, msg);                
             }
         }
     }
