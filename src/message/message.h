@@ -80,6 +80,8 @@ void fileInfoHandler(Message* msg);
 void dataHandler(Message* msg);
 void endHandler(Message* msg);
 void errorHandler(Message* msg);
+
+int isEmpty();
 void printQueue();
 
 /*

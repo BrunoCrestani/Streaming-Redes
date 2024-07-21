@@ -57,9 +57,15 @@ void sendQueue(int sockfd){
 void printQueue(){
   messageQueue* temp = head;
   while(temp != NULL){
-    printf("Message ID: %d\n", temp->message->sequence);
+    printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
+    printf("Message: %s\n Sequence: %d\n", temp->message->data, temp->message->sequence);
+    printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
     temp = temp->next;
   }
+}
+
+int isEmpty() {
+  return head == NULL;
 }
 
 /*
@@ -125,9 +131,7 @@ int sendMessage(int sockfd, Message* msg){
  */
 Message* receiveMessage(int sockfd){
   uint8_t buffer[sizeof(Message)];
-  printf("Waiting for message...\n");
   ssize_t receivedBytes = recv(sockfd, buffer, sizeof(Message), 0);
-  printf("Message received\n");
 
   Message* msg = (Message*)malloc(sizeof(Message));
 
