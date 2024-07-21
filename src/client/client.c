@@ -18,7 +18,7 @@
 
 void appendFile(char *filename, uint8_t *data, uint8_t size)
 {
-    FILE *file = fopen(filename, "a+");
+    FILE *file = fopen(filename, "ab+");
 
     if (file == NULL)
     {
@@ -34,7 +34,7 @@ void appendFile(char *filename, uint8_t *data, uint8_t size)
 int main()
 {
     int rsocket = rawSocketCreator("enp3s0f3u3");
-    Message *msg = createFakeMessage(); // createMessage(16, 0, DOWNLOAD, "README.md");
+    Message *msg = createMessage(10, 0, DOWNLOAD, "never.mp3");
     long int expectedSequence = 0;
     int sentBytes = sendMessage(rsocket, msg);
 
@@ -58,7 +58,7 @@ int main()
             if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
             {
                 printf("Received message with sequence %d\n", receivedBytes->sequence);
-                appendFile("README.md", receivedBytes->data, receivedBytes->size);
+                appendFile("never.mp3", receivedBytes->data, receivedBytes->size);
                 Message* ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
                 expectedSequence++;
                 sendMessage(rsocket, ack);
