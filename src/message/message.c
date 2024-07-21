@@ -6,7 +6,6 @@
 #include "message.h"
 #include "./../raw_sockets/sockets.h"
 
-#define INIT_MARKER 0x7E
 
 messageQueue* head = NULL;
 messageQueue* tail = NULL;
@@ -27,7 +26,6 @@ void enqueueMessage(Message *msg){
     tail = node;
   }
 }
-
 /*
  * Gets a message out of the queue
  */
@@ -42,10 +40,38 @@ Message* dequeueMessage(){
     return msg;
 }
 
+Message* peekMessage(){
+  if (head == NULL) return NULL;
+  return head->message;
+}
+
+void sendQueue(int sockfd){
+  messageQueue* temp = head;
+  while(temp != NULL){
+    int sentBytes = sendMessage(sockfd, temp->message);
+    printf("Message sent: ID: %d\n", temp->message->sequence);
+    temp = temp->next;
+  }
+}
+
+void printQueue(){
+  messageQueue* temp = head;
+  while(temp != NULL){
+    printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
+    printf("Message: %s\n Sequence: %d\n", temp->message->data, temp->message->sequence);
+    printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
+    temp = temp->next;
+  }
+}
+
+int isEmpty() {
+  return head == NULL;
+}
+
 /*
  * Creates a message
  */
-Message* createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[], uint8_t error){
+Message* createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[]){
   Message* msg;
 
   if (!(msg = malloc(sizeof(Message))))
@@ -68,11 +94,11 @@ Message* createFakeMessage() {
     return NULL;
 
   msg->marker = INIT_MARKER;
-  msg->size = 6;
+  msg->size = 16;
   msg->sequence = 1;
-  msg->type = 2;
-  memcpy(msg->data, "Hello", 6);
-  msg->error = calculateCRC8("Hello", 6);
+  msg->type = DOWNLOAD;
+  memcpy(msg->data, "Hello, World!!!", 16);
+  msg->error = calculateCRC8("Hello, World!!!", 16);
 
   return msg;
 }
@@ -88,30 +114,31 @@ void deleteMessage(Message* msg, unsigned int sizeAck){
  * The process of sending a 
  * message from the server to the user
  */
-unsigned int sendMessage(int sockfd, Message* msg){
+int sendMessage(int sockfd, Message* msg){
   if (msg == NULL) return -1;
   
   size_t messageSize = sizeof(Message) - MAX_DATA_SIZE + msg->size;
   uint8_t buffer[messageSize];
   memcpy(buffer, msg, messageSize);
+  unsigned int sentBytes = rawSocketSend(sockfd, buffer, messageSize, 0);
 
-  ssize_t sentBytes = rawSocketSend(sockfd, buffer, messageSize, 0);
-
-  return (sentBytes == messageSize) ? 0 : -1;
+  return sentBytes;
 }
 
 /*
- * The process of recieving a message from the user
+ * The process of receiving a message from the user
  * to the server
  */
 Message* receiveMessage(int sockfd){
   uint8_t buffer[sizeof(Message)];
-  ssize_t receivedBytes = recv(sockfd, buffer, sizeof(buffer), 0);
+  ssize_t receivedBytes = recv(sockfd, buffer, sizeof(Message), 0);
 
   Message* msg = (Message*)malloc(sizeof(Message));
-  if (receivedBytes <= 0) return NULL;
+
+  if (receivedBytes <= 0 || msg == NULL) return NULL;
 
   memcpy(msg, buffer, receivedBytes);
+  if (msg->marker != INIT_MARKER) return NULL;
   return msg; 
 }
 

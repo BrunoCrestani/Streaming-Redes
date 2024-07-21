@@ -4,6 +4,9 @@
 #include <stdint.h>
 
 #define MAX_DATA_SIZE 63
+#define MAX_SEQUENCE 32
+#define WINDOW_SIZE 4
+#define INIT_MARKER 0x7E
 
 /*
  * frame elements unsigned
@@ -44,7 +47,7 @@ typedef struct messageQueue {
 /*
  * Creates a message
  */
-Message* createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t* data, uint8_t error);
+Message* createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t* data);
 
 Message* createFakeMessage();
 
@@ -62,7 +65,7 @@ void deleteMessage(Message* msg, unsigned int sizeAck);
  * The process of sending a 
  * message from the server to the user
  */
-unsigned int sendMessage(int sockfd, Message* msg);
+int sendMessage(int sockfd, Message* msg);
 
 /*
  * The process of recieving a message from the user
@@ -80,11 +83,22 @@ void dataHandler(Message* msg);
 void endHandler(Message* msg);
 void errorHandler(Message* msg);
 
+int isEmpty();
+void printQueue();
+
 /*
  * Puts the messages type to a switchCase that
  * will direct the message into its own functions
  * handler
  */
 void answerHandler(Message* msg);
+
+/*
+ * Enqueues a message to the messageQueue
+ */
+void enqueueMessage(Message *msg);
+Message* dequeueMessage();
+Message* peekMessage();
+void sendQueue(int sockfd);
 
 #endif

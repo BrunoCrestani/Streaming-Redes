@@ -3,42 +3,75 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/socket.h>
-#include <net/ethernet.h> 
-#include <linux/if_packet.h> 
+#include <net/ethernet.h>
+#include <linux/if_packet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <stddef.h> 
-#include <net/if.h> 
+#include <stddef.h>
+#include <net/if.h>
 #include <unistd.h>
-#include <arpa/inet.h> 
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <errno.h>
 #include "../raw_sockets/sockets.h"
 #include "../message/message.h"
 
-int main() {
-    unsigned int rsocket = rawSocketCreator("lo");
+void appendFile(char *filename, uint8_t *data, uint8_t size)
+{
+    FILE *file = fopen(filename, "a+");
 
-    Message* message = createMessage(6, 1, 2, "Hello", 0);
-
-    struct sockaddr_ll server_addr = {0};
-    server_addr.sll_family = AF_PACKET;
-    server_addr.sll_protocol = htons(ETH_P_ALL);
-
-    // Use loopback interface
-    server_addr.sll_ifindex = if_nametoindex("lo");
-    if (server_addr.sll_ifindex == 0) {
-        perror("Erro ao obter index da interface");
-        exit(-1);
+    if (file == NULL)
+    {
+        perror("Erro ao abrir arquivo");
+        return;
     }
 
-    if (sendto(rsocket, message, sizeof(Message), 0, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
-        perror("Erro ao enviar mensagem");
-        exit(-1);
+    fwrite(data, 1, size, file);
+
+    fclose(file);
+}
+
+int main()
+{
+    int rsocket = rawSocketCreator("enp3s0f3u3");
+    Message *msg = createFakeMessage(); // createMessage(16, 0, DOWNLOAD, "README.md");
+    long int expectedSequence = 0;
+    int sentBytes = sendMessage(rsocket, msg);
+
+    if (!sentBytes)
+    {
+        fprintf(stderr, "Erro ao enviar mensagem");
     }
 
-    printf("Mensagem enviada\n");
+    while (1)
+    {
+        Message *receivedBytes = receiveMessage(rsocket);
 
-    close(rsocket);
+        if (receivedBytes == NULL)
+        {
+            continue;
+        }
+
+        switch (receivedBytes->type)
+        {
+        case DATA:
+            if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
+            {
+                printf("Received message with sequence %d\n", receivedBytes->sequence);
+                appendFile("README.md", receivedBytes->data, receivedBytes->size);
+                Message* ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+                expectedSequence++;
+                sendMessage(rsocket, ack);
+            } else {
+                printf("Received out of order message\n");
+                Message* ack = createMessage(21, (expectedSequence - 1) % MAX_SEQUENCE, ACK, "Out of order message");
+                sendMessage(rsocket, ack);
+            }
+
+            // appendFile("README.md", receivedBytes->data, receivedBytes->size);
+            break;
+        }
+    }
+
     return 0;
 }
