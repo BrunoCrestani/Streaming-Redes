@@ -55,16 +55,16 @@ int main()
         switch (receivedBytes->type)
         {
         case DATA:
-            if (receivedBytes->sequence == (expectedSequence % 4))
+            if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
             {
                 printf("Received message with sequence %d\n", receivedBytes->sequence);
                 appendFile("README.md", receivedBytes->data, receivedBytes->size);
-                Message* ack = createMessage(16, expectedSequence % 4, ACK, "Hello, World!!!");
+                Message* ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
                 expectedSequence++;
                 sendMessage(rsocket, ack);
             } else {
                 printf("Received out of order message\n");
-                Message* ack = createMessage(16, (expectedSequence - 1) % 4, ACK, "Hello, World!!!");
+                Message* ack = createMessage(21, (expectedSequence - 1) % MAX_SEQUENCE, ACK, "Out of order message");
                 sendMessage(rsocket, ack);
             }
 

@@ -4,6 +4,8 @@
 #include <stdint.h>
 
 #define MAX_DATA_SIZE 63
+#define MAX_SEQUENCE 32
+#define WINDOW_SIZE 4
 #define INIT_MARKER 0x7E
 
 /*

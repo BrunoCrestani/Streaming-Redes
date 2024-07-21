@@ -31,10 +31,9 @@ void sendFile(int rsocket, char *filename)
 
     char buff[63];
     size_t bytesRead = 0;
-    const int windowSize = 4;
     int sequence = 0;
 
-    for (int i = 0; i < windowSize; i++)
+    for (sequence = 0; sequence < WINDOW_SIZE; sequence++)
     {
         bytesRead = fread(buff, 1, 63, file);
 
@@ -43,9 +42,8 @@ void sendFile(int rsocket, char *filename)
             break;
         }
 
-        Message *msg = createMessage(bytesRead, i, DATA, buff);
+        Message *msg = createMessage(bytesRead, sequence % MAX_SEQUENCE, DATA, buff);
         enqueueMessage(msg);
-        sequence++;
     }
 
     long long start = timestamp();
@@ -53,8 +51,8 @@ void sendFile(int rsocket, char *filename)
 
     struct timeval tv = { .tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000 };
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv); // set new options
-
     sendQueue(rsocket);
+
     while (!isEmpty())
     {
         Message *receivedBytes = receiveMessage(rsocket);
@@ -95,7 +93,7 @@ void sendFile(int rsocket, char *filename)
                     continue; // EOF
                 }
 
-                Message *msg = createMessage(bytesRead, sequence % 32, DATA, buff);
+                Message *msg = createMessage(bytesRead, sequence % MAX_SEQUENCE, DATA, buff);
                 sequence++;
                 enqueueMessage(msg);
                 sendMessage(rsocket, msg);                
