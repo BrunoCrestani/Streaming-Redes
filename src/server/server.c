@@ -21,7 +21,8 @@ long long timestamp() {
 
 void sendFile(int rsocket, char *filename)
 {
-    FILE *file = fopen(filename, "r");
+    sleep(1); // wait for client to be ready
+    FILE *file = fopen(filename, "rb");
 
     if (file == NULL)
     {
@@ -29,13 +30,13 @@ void sendFile(int rsocket, char *filename)
         return;
     }
 
-    char buff[63];
+    char buff[MAX_DATA_SIZE];
     size_t bytesRead = 0;
     int sequence = 0;
 
     for (sequence = 0; sequence < WINDOW_SIZE; sequence++)
     {
-        bytesRead = fread(buff, 1, 63, file);
+        bytesRead = fread(buff, 1, MAX_DATA_SIZE, file);
 
         if (bytesRead == 0)
         {
@@ -46,8 +47,8 @@ void sendFile(int rsocket, char *filename)
         enqueueMessage(msg);
     }
 
-    long long timeoutMillis = 2000; // 2 seconds
-    long long start = timestamp() - timeoutMillis; // already timeouted
+    long long timeoutMillis = 250; // 250ms
+    long long start = timestamp(); // already timeouted
 
     struct timeval tv = { .tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000 };
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv); // set new options
@@ -84,7 +85,7 @@ void sendFile(int rsocket, char *filename)
                 start = timestamp();
                 dequeueMessage();
                 
-                bytesRead = fread(buff, 1, 63, file);
+                bytesRead = fread(buff, 1, MAX_DATA_SIZE, file);
 
                 if (bytesRead == 0)
                 {
@@ -124,7 +125,14 @@ int main()
         {
         case DOWNLOAD:
             printf("Enviando arquivo\n");
-            sendFile(rsocket, receivedBytes->data);
+            const char *filepath = "public/";
+            char* filename = malloc(receivedBytes->size + strlen(filepath) + 1);
+
+            strcat(filename, filepath);
+            strcat(filename, receivedBytes->data);
+            strcat(filename, "\0");
+            
+            sendFile(rsocket, filename);
             break;
         }
     }
