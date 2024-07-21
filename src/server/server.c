@@ -128,9 +128,13 @@ int main()
             const char *filepath = "public/";
             char* filename = malloc(receivedBytes->size + strlen(filepath) + 1);
 
+            for (int i = 0; i < receivedBytes->size; i++)
+            {
+                filename[i] = '\0';
+            }
+
             strcat(filename, filepath);
             strcat(filename, receivedBytes->data);
-            strcat(filename, "\0");
             
             sendFile(rsocket, filename);
             break;
