@@ -94,11 +94,11 @@ Message* createFakeMessage() {
     return NULL;
 
   msg->marker = INIT_MARKER;
-  msg->size = 16;
-  msg->sequence = 1;
+  msg->size = 10;
+  msg->sequence = 0;
   msg->type = DOWNLOAD;
-  memcpy(msg->data, "Hello, World!!!", 16);
-  msg->error = calculateCRC8("Hello, World!!!", 16);
+  memcpy(msg->data, "README.md", 10);
+  msg->error = calculateCRC8("README.md", 10);
 
   return msg;
 }

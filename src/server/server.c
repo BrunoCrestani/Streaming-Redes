@@ -25,7 +25,7 @@ void sendFile(int rsocket, char *filename)
 
     if (file == NULL)
     {
-        perror("Erro ao abrir arquivo");
+        fprintf(stderr, "Erro ao abrir arquivo: %s", filename);
         return;
     }
 
@@ -46,27 +46,25 @@ void sendFile(int rsocket, char *filename)
         enqueueMessage(msg);
     }
 
-    long long start = timestamp();
-    long long timeoutMillis = 5000;
+    long long timeoutMillis = 2000; // 2 seconds
+    long long start = timestamp() - timeoutMillis; // already timeouted
 
     struct timeval tv = { .tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000 };
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv); // set new options
-    sendQueue(rsocket);
 
     while (!isEmpty())
     {
         Message *receivedBytes = receiveMessage(rsocket);
 
-        if (timestamp() - start > timeoutMillis)
+        if (timestamp() - start >= timeoutMillis)
         {
-            printf("\nTimeouted!!!\n");
+            printf("Timeout\n");
             sendQueue(rsocket);
             start = timestamp();
         }
 
         if (receivedBytes == NULL)
         {
-            fprintf(stderr, "Erro ao receber mensagem\n");
             continue;
         }
 
@@ -126,7 +124,7 @@ int main()
         {
         case DOWNLOAD:
             printf("Enviando arquivo\n");
-            sendFile(rsocket, "README.md");
+            sendFile(rsocket, receivedBytes->data);
             break;
         }
     }
