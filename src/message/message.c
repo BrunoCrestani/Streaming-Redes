@@ -289,6 +289,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   char buff[MAX_DATA_SIZE];
   size_t bytesRead = 0;
   int sequence = 0;
+  int has_sent_end = 0;
 
   for (sequence = 0; sequence < WINDOW_SIZE; sequence++)
   {
@@ -342,9 +343,17 @@ void downloadHandler(Message *receivedBytes, int sockfd)
 
         bytesRead = fread(buff, 1, MAX_DATA_SIZE, file);
 
+        if (bytesRead == 0 && !has_sent_end)
+        {
+          has_sent_end = 1;
+          Message *msg = createMessage(19, sequence % MAX_SEQUENCE, END, "Arquivo finalizado");
+          enqueueMessage(msg);
+          continue;
+        }
+
         if (bytesRead == 0)
         {
-          continue; // EOF
+          continue;
         }
 
         Message *msg = createMessage(bytesRead, sequence % MAX_SEQUENCE, DATA, buff);
@@ -355,7 +364,6 @@ void downloadHandler(Message *receivedBytes, int sockfd)
     }
   }
 
-  sendMessage(sockfd, createMessage(12, sequence % MAX_SEQUENCE, END, "end of file"));
 
   printf("Arquivo enviado\n");
 
