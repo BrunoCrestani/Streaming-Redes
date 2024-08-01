@@ -85,13 +85,18 @@ int main()
                 Message* ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
                 expectedSequence++;
                 sendMessage(rsocket, ack);
-            } else {
+            } 
+            else if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error) {
+                printf("Received message with error\n");
+                Message* ack = createMessage(21, receivedBytes->sequence, ACK, "Acknowledged");
+                sendMessage(rsocket, ack);
+            }
+            else {
                 printf("Received out of order message\n");
                 Message* ack = createMessage(21, (expectedSequence - 1) % MAX_SEQUENCE, ACK, "Out of order message");
                 sendMessage(rsocket, ack);
             }
-
-            // appendFile("README.md", receivedBytes->data, receivedBytes->size);
+            
             break;
 
         case END:
