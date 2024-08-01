@@ -60,7 +60,6 @@ void sendQueue(int sockfd)
   while (temp != NULL)
   {
     int sentBytes = sendMessage(sockfd, temp->message);
-    printf("Message sent: ID: %d\n", temp->message->sequence);
     temp = temp->next;
   }
 }
