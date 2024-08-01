@@ -34,6 +34,7 @@ void appendFile(char *filename, uint8_t *data, uint8_t size)
 
 void download_file(int rsocket, char *filename)
 {
+    printf("Baixando...\n");
 
     Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, filename);
     long int expectedSequence = 0;
@@ -144,7 +145,6 @@ int main()
 
             break;
         case 'l':
-            list_files(rsocket);
             break;
         case 'q':
             return 0;
