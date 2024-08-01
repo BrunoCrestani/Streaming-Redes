@@ -51,7 +51,7 @@ int main()
         fprintf(stderr, "Erro ao enviar mensagem");
     }
 
-    long long timeout = 1500;
+    long long timeout = 750; // 750ms
     struct timeval tv = {.tv_sec = timeout / 1000, .tv_usec = (timeout % 1000) * 1000};
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(struct timeval));
     long long start = timestamp();
@@ -95,6 +95,8 @@ int main()
             break;
 
         case END:
+            Message* ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+            sendMessage(rsocket, ack);
             printf("Received END message\n");
             return 0;
             break;
