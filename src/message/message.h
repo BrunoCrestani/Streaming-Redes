@@ -95,4 +95,6 @@ Message *dequeueMessage();
 Message *peekMessage();
 void sendQueue(int sockfd);
 
+long long timestamp();
+
 #endif
