@@ -337,7 +337,6 @@ void downloadHandler(Message *receivedBytes, int sockfd)
 
       if (receivedBytes->sequence == firstOfWindow->sequence)
       {
-        printf("Movendo janela...\n");
         start = timestamp();
         dequeueMessage();
 
@@ -355,6 +354,8 @@ void downloadHandler(Message *receivedBytes, int sockfd)
       }
     }
   }
+
+  sendMessage(sockfd, createMessage(12, sequence % MAX_SEQUENCE, END, "end of file"));
 
   printf("Arquivo enviado\n");
 

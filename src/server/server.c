@@ -22,7 +22,7 @@ int main()
 
         if (receivedBytes == NULL)
         {
-            fprintf(stderr, "Erro ao receber mensagem\n");
+            // fprintf(stderr, "Erro ao receber mensagem\n");
             continue;
         }
 
