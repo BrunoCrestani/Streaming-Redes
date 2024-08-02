@@ -5,6 +5,9 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <dirent.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/statvfs.h>
 #include "message.h"
 #include "./../raw_sockets/sockets.h"
 
@@ -362,6 +365,36 @@ void listHandler(Message *_, int sockfd)
   closedir(d);
 }
 
+int is_readable_by_others(const char *path)
+{
+  struct stat st;
+
+  if (stat(path, &st) != 0)
+  {
+    return 0;
+  }
+
+  return (st.st_mode & S_IROTH) != 0;
+}
+
+int is_in_public_folder(const char *path)
+{
+  return strstr(path, "public/") == path;
+}
+
+int is_disk_full(const char *path)
+{
+  struct statvfs buf;
+
+  if (statvfs(path, &buf) < 0)
+  {
+    return 0;
+  }
+
+  unsigned long free_space = buf.f_bsize * buf.f_bavail / 1024 / 1024;
+
+  return free_space < 10;
+}
 /*
  * When a DOWNLOAD is received
  * the file is sent to the user in chunks using a window
@@ -378,11 +411,26 @@ void downloadHandler(Message *receivedBytes, int sockfd)
 
   FILE *file = fopen(filename, "rb");
 
-  if (file == NULL)
+  // check file permission
+  if (!is_readable_by_others(filename))
+  {
+    sendMessage(sockfd, createMessage(24, ACCESS_DENIED, ERROR, "Acesso negado"));
+
+    return;
+  }
+
+  if (is_disk_full(filepath))
+  {
+    sendMessage(sockfd, createMessage(24, DISK_IS_FULL, ERROR, "Disco cheio"));
+
+    return;
+  }
+
+  if (file == NULL || !is_in_public_folder(filename))
   {
     fprintf(stderr, "Erro ao abrir arquivo: %s", filename);
 
-    sendMessage(sockfd, createMessage(24, 0, ERROR, "Arquivo não encontrado"));
+    sendMessage(sockfd, createMessage(24, NOT_FOUND, ERROR, "Arquivo não encontrado"));
 
     return;
   }
