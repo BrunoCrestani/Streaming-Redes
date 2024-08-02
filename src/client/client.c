@@ -94,8 +94,6 @@ void download_file(int rsocket, char *filename)
         }
     }  
 
-    chmod(filename, 0777);
-
     free(msg);
     fclose(file);
 
@@ -185,13 +183,13 @@ int main()
     printf("sair (q)\n");
     printf("\nOpção: ");
 
-    char option;
-    scanf("%c", &option);
+    char* option = malloc(2);
+    scanf("%s", option);
 
     while (1)
     {
 
-        switch (option)
+        switch (option[0])
         {
         case 'b':
             char *filename = malloc(FILENAME_MAX);
@@ -216,7 +214,7 @@ int main()
             break;
         }
         printf("\nOpção: ");
-        scanf("\n%c", &option);
+        scanf("\n%s", option);
     }
 
     return 0;
