@@ -280,6 +280,9 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   if (file == NULL)
   {
     fprintf(stderr, "Erro ao abrir arquivo: %s", filename);
+
+    sendMessage(sockfd, createMessage(24, 0, ERROR, "Arquivo não encontrado"));
+
     return;
   }
 
