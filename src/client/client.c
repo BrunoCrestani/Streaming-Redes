@@ -34,7 +34,6 @@ void appendFile(char *filename, uint8_t *data, uint8_t size)
 
 void download_file(int rsocket, char *filename)
 {
-    printf("Baixando...\n");
 
     Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, filename);
     long int expectedSequence = 0;
@@ -49,6 +48,7 @@ void download_file(int rsocket, char *filename)
     struct timeval tv = {.tv_sec = timeout / 1000, .tv_usec = (timeout % 1000) * 1000};
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(struct timeval));
     long long start = timestamp();
+    int sent_first_byte = 0;
 
     while (1)
     {
@@ -57,8 +57,10 @@ void download_file(int rsocket, char *filename)
         if (timestamp() - start > timeout) // timeout on download
         {
             start = timestamp();
-            if (expectedSequence == 0)
+            if (!sent_first_byte)
             {
+                sent_first_byte = 1;
+                printf("Procurando servidor...\n");
                 Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, filename);
                 sendMessage(rsocket, msg);
             }
@@ -95,10 +97,12 @@ void download_file(int rsocket, char *filename)
         case END:
             Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
             sendMessage(rsocket, ack);
-            printf("Received END message\n");
+            printf("Download finalizado\n");
             return;
         case ERROR:
-            printf("Error message received\n");
+            printf("Erro ao baixar arquivo: ");
+            printf("%s", receivedBytes->data);
+            printf("\n");
             return;
         }
     }
@@ -121,26 +125,23 @@ int main()
     while (1)
     {
         char option;
-        printf("baixar aquivo (d)\n");
+        printf("baixar aquivo (b)\n");
         printf("listar arquivos (l)\n");
         printf("sair (q)\n");
         printf("\nOpção: ");
         scanf("%c", &option);
-        system("clear");
 
         switch (option)
         {
-        case 'd':
+        case 'b':
             char *filename = malloc(FILENAME_MAX);
+            memset(filename, '\0', FILENAME_MAX);
 
-            for (int i = 0; i < FILENAME_MAX; i++)
-            {
-                filename[i] = '\0';
-            }
-            
             printf("Digite o nome do arquivo: ");
             scanf("%s", filename);
+            filename = realloc(filename, strlen(filename) + 1);
             download_file(rsocket, filename);
+
             free(filename);
 
             break;
@@ -148,6 +149,9 @@ int main()
             break;
         case 'q':
             return 0;
+        default:
+            printf("Opção inválida\n");
+            break;
         }
     }
 

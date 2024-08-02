@@ -270,11 +270,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   printf("Enviando arquivo\n");
   const char *filepath = "public/";
   char *filename = malloc(receivedBytes->size + strlen(filepath) + 1);
-
-  for (int i = 0; i < receivedBytes->size; i++)
-  {
-    filename[i] = '\0';
-  }
+  memset(filename, '\0', receivedBytes->size + strlen(filepath) + 1);
 
   strcat(filename, filepath);
   strcat(filename, receivedBytes->data);
