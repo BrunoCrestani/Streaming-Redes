@@ -14,28 +14,13 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 #include "../raw_sockets/sockets.h"
 #include "../message/message.h"
 
-void appendFile(char *filename, uint8_t *data, uint8_t size)
-{
-    FILE *file = fopen(filename, "ab+");
-
-    if (file == NULL)
-    {
-        perror("Erro ao abrir arquivo");
-        return;
-    }
-
-    fwrite(data, 1, size, file);
-
-    fclose(file);
-}
-
 void download_file(int rsocket, char *filename)
 {
-
-    printf("Download iniciado\n");
+    printf("Baixando arquivo %s...\n", filename);
     Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, filename);
     long int expectedSequence = 0;
     int sentBytes = sendMessage(rsocket, msg);
@@ -50,6 +35,8 @@ void download_file(int rsocket, char *filename)
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(struct timeval));
     long long start = timestamp();
     int sent_first_byte = 0;
+
+    FILE *file = fopen(filename, "wb");
 
     while (1)
     {
@@ -81,7 +68,7 @@ void download_file(int rsocket, char *filename)
             }
             else if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
             {
-                appendFile(filename, receivedBytes->data, receivedBytes->size);
+                fwrite(receivedBytes->data, 1, receivedBytes->size, file);
                 Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
                 expectedSequence++;
                 sent_first_byte = 1;
@@ -105,9 +92,12 @@ void download_file(int rsocket, char *filename)
             printf("\n");
             return;
         }
-    }
+    }  
+
+    chmod(filename, 0777);
 
     free(msg);
+    fclose(file);
 
     return;
 }
@@ -195,10 +185,11 @@ int main()
     printf("sair (q)\n");
     printf("\nOpção: ");
 
+    char option;
+    scanf("%c", &option);
+
     while (1)
     {
-        char option;
-        scanf("%c", &option);
 
         switch (option)
         {
@@ -207,7 +198,7 @@ int main()
             memset(filename, '\0', FILENAME_MAX);
 
             printf("Digite o nome do arquivo: ");
-            scanf("%s", filename);
+            scanf("\n%s", filename);
             download_file(rsocket, filename);
 
             free(filename);
@@ -224,6 +215,8 @@ int main()
             printf("Opção inválida\n");
             break;
         }
+        printf("\nOpção: ");
+        scanf("\n%c", &option);
     }
 
     return 0;
