@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <dirent.h>
 #include "message.h"
 #include "./../raw_sockets/sockets.h"
 
@@ -257,8 +258,105 @@ void nackHandler(Message *msg, int sockfd)
  * media array is displayed in the UI
  *
  */
-void listHandler(Message *msg, int sockfd)
+void listHandler(Message *_, int sockfd)
 {
+  const char *filepath = "public/";
+
+  // stop and wait protocol, so we can send the files one by one
+  DIR *d;
+  struct dirent *dir;
+  d = opendir(filepath);
+
+  if (!d)
+  {
+    printf("Erro ao abrir diretório\n");
+    return;
+  }
+
+  long long timeoutMillis = 250; // 250ms
+  long long start = timestamp();
+  struct timeval tv = {.tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000};
+
+  while ((dir = readdir(d)) != NULL)
+  {
+    if (strlen(dir->d_name) < 6 || dir->d_type != DT_REG)
+    {
+      continue;
+    }
+
+    Message *msg = createMessage(strlen(dir->d_name) + 1, 0, SHOW, strcat(dir->d_name, "\0"));
+    sendMessage(sockfd, msg);
+
+    while (1)
+    {
+      Message* receivedBytes = receiveMessage(sockfd);
+
+      if (timestamp() - start > timeoutMillis)
+      {
+        printf("Timeout\n");
+        sendMessage(sockfd, msg);
+        start = timestamp();
+      }
+
+      if (receivedBytes == NULL)
+      {
+        continue;
+      }
+
+      if (receivedBytes->type == ACK)
+      {
+        break;
+      }
+      else if (receivedBytes->type == NACK)
+      {
+        sendMessage(sockfd, msg);
+      }
+    }
+
+  }
+
+  // send end message
+
+  Message *msg = createMessage(19, 0, END, "Arquivos enviados");
+  sendMessage(sockfd, msg);
+  const long long ackLostTimeout = 3000; // 3s
+
+  while (1)
+  {
+    Message *receivedBytes = receiveMessage(sockfd);
+
+    if (timestamp() - start > timeoutMillis)
+    {
+      printf("Timeout\n");
+      sendMessage(sockfd, msg);
+      start = timestamp();
+    }
+
+    if (timestamp() - start > ackLostTimeout)
+    {
+      printf("Arquivos enviados\n");
+      break;
+    }
+
+    if (receivedBytes == NULL)
+    {
+      continue;
+    }
+
+    
+    if (receivedBytes->type == ACK)
+    {
+      break;
+    }
+    else if (receivedBytes->type == NACK)
+    {
+      start = timestamp();
+      sendMessage(sockfd, msg);
+    }
+  }
+
+  free(msg);
+  closedir(d);
 }
 
 /*
@@ -289,7 +387,6 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   char buff[MAX_DATA_SIZE];
   size_t bytesRead = 0;
   int sequence = 0;
-  int has_sent_end = 0;
 
   for (sequence = 0; sequence < WINDOW_SIZE; sequence++)
   {
@@ -304,7 +401,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
     enqueueMessage(msg);
   }
 
-  long long timeoutMillis = 250; // 250ms
+  const long long timeoutMillis = 250; // 250ms
   long long start = timestamp();
 
   struct timeval tv = {.tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000};
@@ -327,6 +424,8 @@ void downloadHandler(Message *receivedBytes, int sockfd)
       continue;
     }
 
+    start = timestamp();
+
     if (receivedBytes->type == ACK)
     {
       Message *firstOfWindow = peekMessage();
@@ -338,18 +437,9 @@ void downloadHandler(Message *receivedBytes, int sockfd)
 
       if (receivedBytes->sequence == firstOfWindow->sequence)
       {
-        start = timestamp();
         dequeueMessage();
 
         bytesRead = fread(buff, 1, MAX_DATA_SIZE, file);
-
-        if (bytesRead == 0 && !has_sent_end)
-        {
-          has_sent_end = 1;
-          Message *msg = createMessage(19, sequence % MAX_SEQUENCE, END, "Arquivo finalizado");
-          enqueueMessage(msg);
-          continue;
-        }
 
         if (bytesRead == 0)
         {
@@ -361,9 +451,47 @@ void downloadHandler(Message *receivedBytes, int sockfd)
         enqueueMessage(msg);
         sendMessage(sockfd, msg);
       }
-    } else if (receivedBytes->type == NACK)
+    }
+    else if (receivedBytes->type == NACK)
     {
       sendQueue(sockfd);
+    }
+  }
+
+  Message *msg = createMessage(19, 0, END, "Arquivos enviados");
+  sendMessage(sockfd, msg);
+
+  const long long ackLostTimeout = 3000; // 3s
+
+  while (1)
+  {
+    Message *receivedBytes = receiveMessage(sockfd);
+
+    if (timestamp() - start > timeoutMillis)
+    {
+      printf("Timeout\n");
+      sendMessage(sockfd, msg);
+      start = timestamp();
+    }
+
+    if (timestamp() - start > ackLostTimeout)
+    {
+      printf("Arquivo enviado\n");
+      break;
+    }
+
+    if (receivedBytes == NULL)
+    {
+      continue;
+    }
+
+    if (receivedBytes->type == ACK)
+    {
+      break;
+    }
+    else if (receivedBytes->type == NACK)
+    {
+      sendMessage(sockfd, msg);
     }
   }
 
