@@ -157,6 +157,8 @@ int sendMessage(int sockfd, Message *msg)
 Message *receiveMessage(int sockfd)
 {
   uint8_t buffer[sizeof(Message)];
+  memset(buffer, 0, sizeof(Message));
+
   ssize_t receivedBytes = recv(sockfd, buffer, sizeof(Message), 0);
 
   Message *msg = (Message *)malloc(sizeof(Message));
@@ -360,6 +362,9 @@ void downloadHandler(Message *receivedBytes, int sockfd)
         enqueueMessage(msg);
         sendMessage(sockfd, msg);
       }
+    } else if (receivedBytes->type == NACK)
+    {
+      sendQueue(sockfd);
     }
   }
 

@@ -72,16 +72,16 @@ void download_file(int rsocket, char *filename)
         switch (receivedBytes->type)
         {
         case DATA:
-            if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
+            if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error && receivedBytes->error != 0x00)
             {
-                appendFile("mewing.mp3", receivedBytes->data, receivedBytes->size);
+                Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
+                sendMessage(rsocket, nack);
+            }
+            else if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
+            {
+                appendFile(filename, receivedBytes->data, receivedBytes->size);
                 Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
                 expectedSequence++;
-                sendMessage(rsocket, ack);
-            }
-            else if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error)
-            {
-                Message *ack = createMessage(21, receivedBytes->sequence, ACK, "Acknowledged");
                 sendMessage(rsocket, ack);
             }
             else
