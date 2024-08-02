@@ -475,7 +475,6 @@ void downloadHandler(Message *receivedBytes, int sockfd)
       continue;
     }
 
-    start = timestamp();
 
     if (receivedBytes->type == ACK)
     {
@@ -485,6 +484,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
       {
         break;
       }
+      start = timestamp();
 
       if (receivedBytes->sequence == firstOfWindow->sequence)
       {
