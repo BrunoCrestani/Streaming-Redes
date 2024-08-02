@@ -178,16 +178,16 @@ Message *receiveMessage(int sockfd)
  */
 uint8_t calculateCRC8(const uint8_t *data, uint8_t len)
 {
-  uint8_t crc = 0x00;
+  uint8_t crc = 0xFF;
   for (size_t i = 0; i < len; i++)
   {
     crc ^= data[i];
     for (uint8_t j = 0; j < 8; j++)
     {
-      if (crc & 0x80)
+      if (crc & 0x80 != 0)
       {
         // Example
-        crc = (crc << 1) ^ 0x07;
+        crc = (uint8_t)((crc << 1) ^ 0x31);
       }
       else
       {
@@ -321,6 +321,9 @@ void listHandler(Message *_, int sockfd)
   sendMessage(sockfd, msg);
   const long long ackLostTimeout = 3000; // 3s
 
+  long long startAckLostTimeout = timestamp();
+  start = timestamp();
+
   while (1)
   {
     Message *receivedBytes = receiveMessage(sockfd);
@@ -332,9 +335,9 @@ void listHandler(Message *_, int sockfd)
       start = timestamp();
     }
 
-    if (timestamp() - start > ackLostTimeout)
+    if (timestamp() - startAckLostTimeout > ackLostTimeout)
     {
-      printf("Arquivos enviados\n");
+      printf("Arquivo enviado\n");
       break;
     }
 
