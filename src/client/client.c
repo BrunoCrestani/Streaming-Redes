@@ -35,6 +35,7 @@ void appendFile(char *filename, uint8_t *data, uint8_t size)
 void download_file(int rsocket, char *filename)
 {
 
+    printf("Download iniciado\n");
     Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, filename);
     long int expectedSequence = 0;
     int sentBytes = sendMessage(rsocket, msg);
@@ -44,7 +45,7 @@ void download_file(int rsocket, char *filename)
         fprintf(stderr, "Erro ao enviar mensagem");
     }
 
-    long long timeout = 750; // 750ms
+    long long timeout = 1000; // 1s
     struct timeval tv = {.tv_sec = timeout / 1000, .tv_usec = (timeout % 1000) * 1000};
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(struct timeval));
     long long start = timestamp();
@@ -57,9 +58,8 @@ void download_file(int rsocket, char *filename)
         if (timestamp() - start > timeout) // timeout on download
         {
             start = timestamp();
-            if (!sent_first_byte)
+            if (expectedSequence == 0 && !sent_first_byte)
             {
-                sent_first_byte = 1;
                 printf("Procurando servidor...\n");
                 Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, filename);
                 sendMessage(rsocket, msg);
@@ -84,6 +84,7 @@ void download_file(int rsocket, char *filename)
                 appendFile(filename, receivedBytes->data, receivedBytes->size);
                 Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
                 expectedSequence++;
+                sent_first_byte = 1;
                 sendMessage(rsocket, ack);
             }
             else
@@ -139,7 +140,6 @@ int main()
 
             printf("Digite o nome do arquivo: ");
             scanf("%s", filename);
-            filename = realloc(filename, strlen(filename) + 1);
             download_file(rsocket, filename);
 
             free(filename);
