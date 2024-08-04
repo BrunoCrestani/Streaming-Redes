@@ -260,6 +260,7 @@ int main()
             if (strlen(filename) < 6 || strcmp(filename + strlen(filename) - 4, ".mp4") != 0)
             {
                 printf("Nome de arquivo inválido\n");
+                free(filename);
                 break;
             }
 
