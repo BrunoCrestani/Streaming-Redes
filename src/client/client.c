@@ -45,17 +45,21 @@ void download_file(int rsocket, char *filename)
         fprintf(stderr, "Erro ao enviar mensagem");
     }
 
-    long long timeout = 1000; // 1s
-    struct timeval tv = {.tv_sec = timeout / 1000, .tv_usec = (timeout % 1000) * 1000};
+    const long long TIMEOUT = 350; // 350ms
+    const int MAX_RETRIES = 16; // 16*350ms = 5.6s
+
+    struct timeval tv = {.tv_sec = TIMEOUT / 1000, .tv_usec = (TIMEOUT % 1000) * 1000};
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(struct timeval));
+
     long long start = timestamp();
     int sent_first_byte = 0;
+    int retries = 0;
 
     while (1)
     {
         Message *receivedBytes = receiveMessage(rsocket);
 
-        if (timestamp() - start > timeout) // timeout on download
+        if (timestamp() - start > TIMEOUT) // timeout on download
         {
             start = timestamp();
             if (expectedSequence == 0 && !sent_first_byte)
@@ -64,12 +68,24 @@ void download_file(int rsocket, char *filename)
                 Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, filename);
                 sendMessage(rsocket, msg);
             }
+            retries++;
+        }
+
+        if (retries >= MAX_RETRIES)
+        {
+            printf("Servidor não encontrado\n");
+            free(msg);
+            free(receivedBytes);
+            remove(filename);
+            return;
         }
 
         if (receivedBytes == NULL)
         {
             continue;
         }
+
+        retries = 0;
 
         switch (receivedBytes->type)
         {
@@ -79,7 +95,7 @@ void download_file(int rsocket, char *filename)
                 Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
                 sendMessage(rsocket, nack);
             }
-             else if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
+            else if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
             {
                 appendFile(filename, receivedBytes->data, receivedBytes->size);
                 Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
@@ -101,11 +117,10 @@ void download_file(int rsocket, char *filename)
             break;
         case ERROR:
             printf("Erro ao baixar arquivo: ");
-            printf("%s", receivedBytes->data);
-            printf("\n");
+            printf("%s\n", receivedBytes->data);
             return;
         }
-    }  
+    }
 
     free(msg);
 
@@ -144,8 +159,8 @@ void print_files(int rsocket)
                 printf("Procurando servidor...\n");
                 msg = createMessage(25, 0, LIST, "List all files in public");
                 sendMessage(rsocket, msg);
-                retries++;
             }
+            retries++;
         }
 
         if (retries >= MAX_RETRIES)
@@ -173,7 +188,8 @@ void print_files(int rsocket)
             }
             else
             {
-                if (!has_sent_first_byte) {
+                if (!has_sent_first_byte)
+                {
                     printf("-=-=-=-= Arquivos -=-=-=-=\n");
                 }
                 printf("%s\n", receivedBytes->data);
@@ -216,7 +232,7 @@ int main()
     printf("sair (q)\n");
     printf("\nOpção: ");
 
-    char* option = malloc(2);
+    char *option = malloc(2);
     scanf("%s", option);
 
     while (1)
