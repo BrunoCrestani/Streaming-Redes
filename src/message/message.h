@@ -41,18 +41,6 @@ typedef struct message
   uint8_t error;
 } Message;
 
-typedef struct MessageNode
-{
-  Message *message;
-  struct MessageNode *next;
-
-} MessageNode;
-
-typedef struct MessageQueue {
-  MessageNode *head;
-  MessageNode *tail;
-} MessageQueue;
-
 long long timestamp();
 Message *createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[]);
 int sendMessage(int sockfd, Message *msg);

@@ -10,74 +10,7 @@
 #include "message.h"
 #include "./../raw_sockets/sockets.h"
 #include "./../media/media.h"
-
-/*
- * Initializes a message queue
- */
-void initQueue(MessageQueue *queue)
-{
-  queue->head = NULL;
-  queue->tail = NULL;
-}
-
-/*
- * Puts a new message on the queue
- */
-void enqueueMessage(MessageQueue *queue, Message *msg)
-{
-  MessageNode *node = malloc(sizeof(MessageNode));
-  node->message = msg;
-  node->next = NULL;
-
-  if (queue->tail == NULL)
-  {
-    queue->head = queue->tail = node;
-  }
-  else
-  {
-    queue->tail->next = node;
-    queue->tail = node;
-  }
-}
-
-/*
- * Gets a message out of the queue
- */
-Message *dequeueMessage(MessageQueue *queue)
-{
-  if (queue->head == NULL)
-    return NULL;
-
-  MessageNode *temp = queue->head;
-  Message *msg = queue->head->message;
-  queue->head = queue->head->next;
-  if (queue->head == NULL)
-    queue->tail = NULL;
-  free(temp);
-  return msg;
-}
-
-Message *peekMessage(MessageQueue *queue)
-{
-  if (queue->head == NULL)
-    return NULL;
-  return queue->head->message;
-}
-
-void sendQueue(MessageQueue *queue, int sockfd)
-{
-  MessageNode *temp = queue->head;
-  while (temp != NULL)
-  {
-    int sentBytes = sendMessage(sockfd, temp->message);
-    temp = temp->next;
-  }
-}
-
-int isEmpty(MessageQueue *queue)
-{
-  return queue->head == NULL;
-}
+#include "./../queue/queue.h"
 
 long long timestamp()
 {
@@ -171,41 +104,49 @@ uint8_t calculateCRC8(const uint8_t *data, uint8_t len)
   return crc;
 }
 
-void sendMessageStopAndWait(int sockfd, Message *msg, long long timeoutMillis, int maxRetries) {
-    struct timeval tv = {.tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000};
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
-    
-    long long start = timestamp();
-    int retries = 0;
+void send_message_stop_and_wait(int sockfd, Message *msg, long long timeoutMillis, int maxRetries)
+{
+  struct timeval tv = {.tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000};
+  setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv);
 
-    while (1) {
-        Message *receivedBytes = receiveMessage(sockfd);
+  long long start = timestamp();
+  int retries = 0;
 
-        if (timestamp() - start > timeoutMillis) {
-            sendMessage(sockfd, msg);
-            start = timestamp();
-            retries++;
-        }
+  while (1)
+  {
+    Message *receivedBytes = receiveMessage(sockfd);
 
-        if (retries > maxRetries) {
-            printf("Número máximo de tentativas atingido\n");
-            break;
-        }
-
-        if (receivedBytes == NULL) {
-            continue;
-        }
-
-        retries = 0;
-
-        if (receivedBytes->type == ACK && receivedBytes->sequence == msg->sequence) {
-            break;
-        } else if (receivedBytes->type == NACK) {
-            start = timestamp();
-            sendMessage(sockfd, msg);
-        }
-        free(receivedBytes);
+    if (timestamp() - start > timeoutMillis)
+    {
+      sendMessage(sockfd, msg);
+      start = timestamp();
+      retries++;
     }
+
+    if (retries > maxRetries)
+    {
+      printf("Número máximo de tentativas atingido\n");
+      break;
+    }
+
+    if (receivedBytes == NULL)
+    {
+      continue;
+    }
+
+    retries = 0;
+
+    if (receivedBytes->type == ACK && receivedBytes->sequence == msg->sequence)
+    {
+      break;
+    }
+    else if (receivedBytes->type == NACK)
+    {
+      start = timestamp();
+      sendMessage(sockfd, msg);
+    }
+    free(receivedBytes);
+  }
 }
 
 /*
@@ -243,9 +184,9 @@ void listHandler(int sockfd)
     }
 
     Message *msg = createMessage(strlen(dir->d_name) + 1, 0, SHOW, strcat(dir->d_name, "\0"));
-    
+
     sendMessage(sockfd, msg);
-    sendMessageStopAndWait(sockfd, msg, timeoutMillis, MAX_RETRIES);
+    send_message_stop_and_wait(sockfd, msg, timeoutMillis, MAX_RETRIES);
 
     free(msg);
 
@@ -262,10 +203,10 @@ void listHandler(int sockfd)
       continue;
     }
 
-    char* media_str = media_to_string(media);
+    char *media_str = media_to_string(media);
     Message *fileInfo = createMessage(strlen(media_str), 0, FILE_INFO, media_str);
     sendMessage(sockfd, fileInfo);
-    sendMessageStopAndWait(sockfd, fileInfo, timeoutMillis, MAX_RETRIES);
+    send_message_stop_and_wait(sockfd, fileInfo, timeoutMillis, MAX_RETRIES);
 
     free(path);
     free(media);
@@ -277,7 +218,7 @@ void listHandler(int sockfd)
   Message *msg = createMessage(19, 0, END, "Arquivos enviados");
   sendMessage(sockfd, msg);
 
-  sendMessageStopAndWait(sockfd, msg, timeoutMillis, MAX_RETRIES);
+  send_message_stop_and_wait(sockfd, msg, timeoutMillis, MAX_RETRIES);
 
   free(msg);
   closedir(d);
@@ -357,6 +298,8 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   }
 
   char buff[MAX_DATA_SIZE];
+  memset(buff, 0, MAX_DATA_SIZE);
+
   size_t bytesRead = 0;
   int sequence = 0;
 
@@ -373,10 +316,10 @@ void downloadHandler(Message *receivedBytes, int sockfd)
     enqueueMessage(queue, msg);
   }
 
-  const long long timeoutMillis = 250; // 250ms
-  const int MAX_RETRIES = 24;          // 250ms * 24 = 6s
+  const long long TIMEOUT = 250; // 250ms
+  const int MAX_RETRIES = 24;    // 250ms * 24 = 6s
 
-  struct timeval tv = {.tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000};
+  struct timeval tv = {.tv_sec = TIMEOUT / 1000, .tv_usec = (TIMEOUT % 1000) * 1000};
   setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv); // set new options
 
   long long start = timestamp();
@@ -388,7 +331,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   {
     Message *receivedBytes = receiveMessage(sockfd);
 
-    if (timestamp() - start > timeoutMillis)
+    if (timestamp() - start > TIMEOUT)
     {
       sendQueue(queue, sockfd);
       start = timestamp();
@@ -455,9 +398,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   Message *msg = createMessage(19, 0, END, "Arquivos enviados");
   sendMessage(sockfd, msg);
 
-  const long long ackLostTimeout = 3000; // 3s
-
-  sendMessageStopAndWait(sockfd, msg, ackLostTimeout, MAX_RETRIES);
+  send_message_stop_and_wait(sockfd, msg, TIMEOUT, MAX_RETRIES);
 
   printf("Arquivo enviado\n");
 
