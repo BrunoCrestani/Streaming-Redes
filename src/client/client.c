@@ -258,7 +258,7 @@ int main()
             printf("Digite o nome do arquivo: ");
             scanf("\n%s", filename);
             filename = realloc(filename, strlen(filename) + 1);
-            if (strlen(filename) < 6 || strcmp(filename + strlen(filename) - 4, ".mp4") != 0)
+            if (strlen(filename) < 9 || strcmp(filename + strlen(filename) - 4, ".mp4") != 0)
             {
                 printf("Nome de arquivo inválido\n");
                 free(filename);
