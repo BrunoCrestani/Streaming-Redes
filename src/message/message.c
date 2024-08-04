@@ -198,7 +198,7 @@ void sendMessageStopAndWait(int sockfd, Message *msg, long long timeoutMillis, i
 
         retries = 0;
 
-        if (receivedBytes->type == ACK) {
+        if (receivedBytes->type == ACK && receivedBytes->sequence == msg->sequence) {
             break;
         } else if (receivedBytes->type == NACK) {
             start = timestamp();
