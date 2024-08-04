@@ -6,11 +6,10 @@
 #include <sys/time.h>
 #include <dirent.h>
 #include <unistd.h>
-#include <sys/stat.h>
-#include <sys/statvfs.h>
 
 #include "message.h"
 #include "./../raw_sockets/sockets.h"
+#include "./../media/media.h"
 
 /*
  * Initializes a message queue
@@ -186,8 +185,6 @@ void listHandler(int sockfd)
   struct dirent *dir;
   d = opendir(filepath);
 
-  Message *msg = malloc(sizeof(Message));
-
   if (!d)
   {
     printf("Erro ao abrir diretório\n");
@@ -206,7 +203,7 @@ void listHandler(int sockfd)
       continue;
     }
 
-    msg = createMessage(strlen(dir->d_name) + 1, 0, SHOW, strcat(dir->d_name, "\0"));
+    Message *msg = createMessage(strlen(dir->d_name) + 1, 0, SHOW, strcat(dir->d_name, "\0"));
     sendMessage(sockfd, msg);
 
     while (1)
@@ -215,8 +212,52 @@ void listHandler(int sockfd)
 
       if (timestamp() - start > timeoutMillis)
       {
-        printf("Timeout\n");
         sendMessage(sockfd, msg);
+        start = timestamp();
+      }
+
+      if (receivedBytes == NULL)
+      {
+        continue;
+      }
+
+      if (receivedBytes->type == ACK)
+      {
+        free(msg);
+        break;
+      }
+      else if (receivedBytes->type == NACK)
+      {
+        sendMessage(sockfd, msg);
+      }
+      free(receivedBytes);
+    }
+
+    Media *media = media_new();
+
+    char *path = malloc(strlen(filepath) + strlen(dir->d_name) + 1);
+    memset(path, '\0', strlen(filepath) + strlen(dir->d_name) + 1);
+    strcat(path, filepath);
+    strcat(path, dir->d_name);
+
+    if (media_stat(path, media) == -1)
+    {
+      printf("Erro ao obter informações do arquivo\n");
+      continue;
+    }
+
+    char* media_str = media_to_string(media);
+    Message *fileInfo = createMessage(strlen(media_str), 0, FILE_INFO, media_str);
+    sendMessage(sockfd, fileInfo);
+
+    while (1)
+    {
+      Message *receivedBytes = receiveMessage(sockfd);
+
+      if (timestamp() - start > timeoutMillis)
+      {
+        printf("Timeout\n");
+        sendMessage(sockfd, fileInfo);
         start = timestamp();
       }
 
@@ -231,18 +272,21 @@ void listHandler(int sockfd)
       }
       else if (receivedBytes->type == NACK)
       {
-        sendMessage(sockfd, msg);
+        sendMessage(sockfd, fileInfo);
       }
+      free(receivedBytes);
     }
+
+    free(path);
+    free(media);
+    free(fileInfo);
+    free(msg);
   }
 
   // send end message
-
-  msg = createMessage(19, 0, END, "Arquivos enviados");
+  Message *msg = createMessage(19, 0, END, "Arquivos enviados");
   sendMessage(sockfd, msg);
-  const long long ackLostTimeout = 3000; // 3s
 
-  long long startAckLostTimeout = timestamp();
   start = timestamp();
 
   while (1)
@@ -251,15 +295,8 @@ void listHandler(int sockfd)
 
     if (timestamp() - start > timeoutMillis)
     {
-      printf("Timeout\n");
       sendMessage(sockfd, msg);
       start = timestamp();
-    }
-
-    if (timestamp() - startAckLostTimeout > ackLostTimeout)
-    {
-      printf("Arquivo enviado\n");
-      break;
     }
 
     if (receivedBytes == NULL)
@@ -276,6 +313,8 @@ void listHandler(int sockfd)
       start = timestamp();
       sendMessage(sockfd, msg);
     }
+
+    free(receivedBytes);
   }
 
   free(msg);

@@ -1,30 +1,18 @@
+#include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <sys/types.h>
+
 #ifndef __MEDIA__
 #define __MEDIA__
 
-#define MAX_MEDIA_NAME 63
-
 typedef struct media {
-  char name[MAX_MEDIA_NAME];
-  unsigned int duration;
-  unsigned int size;
-} media;
+    off_t     size;    /* total size, in bytes */
+    time_t    last_modified;   /* time of last modification */
+} Media;
 
-
-/*
- * Verify if it is an mp4 file or not
- */
-unsigned int isMp4(const char* filename);
-
-/*
- * Fill the media struct with the content gotten
- * from the file
- */
-media* createMedia(media* media, char* mediaName);
-
-/*
- * List and fill the media array
- */
-media** listMp4Files(const char *dir, int *count);
+Media* media_new();
+int media_stat(const char *path, Media *media);
+char* media_to_string(Media *media);
 
 #endif
 

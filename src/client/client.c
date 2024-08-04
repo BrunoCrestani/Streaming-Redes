@@ -16,6 +16,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include "../raw_sockets/sockets.h"
+#include "../media/media.h"
 #include "../message/message.h"
 
 void appendFile(char *filename, uint8_t *data, uint8_t size)
@@ -188,10 +189,17 @@ void print_files(int rsocket)
 
         switch (receivedBytes->type)
         {
+        case FILE_INFO:
+            printf("%s\n", receivedBytes->data);
+            Message *msg = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+            sendMessage(rsocket, msg);
+            free(msg);
+
+            break;
         case SHOW:
             if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error && receivedBytes->error != 0x00)
             {
-                Message* nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
+                Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
                 sendMessage(rsocket, nack);
                 free(nack);
             }
@@ -199,21 +207,21 @@ void print_files(int rsocket)
             {
                 if (!has_sent_first_byte)
                 {
-                    printf("-=-=-=-= Arquivos -=-=-=-=\n");
+                    printf("-=-=-=-=-=-=-=-=-=- Arquivos =-=-=-=-=-=-=-=-=-=\n");
                 }
-                printf("%s\n", receivedBytes->data);
-                Message* ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+                printf("%s | ", receivedBytes->data);
+                Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
                 has_sent_first_byte = 1;
                 sendMessage(rsocket, ack);
                 free(ack);
             }
             break;
         case END:
-            Message* ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
-            sendMessage(rsocket, ack);
-            printf("-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
+            Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+            sendMessage(rsocket, msg);
+            printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
             free(receivedBytes);
-            free(ack);
+            free(msg);
             return;
             break;
         case ERROR:
