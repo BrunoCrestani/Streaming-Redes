@@ -207,7 +207,7 @@ void print_files(int rsocket)
             {
                 if (!has_sent_first_byte)
                 {
-                    printf("-=-=-=-= Arquivos -=-=-=-=\n");
+                    printf("-=-=-=-=-=-=-=-=-=- Arquivos =-=-=-=-=-=-=-=-=-=\n");
                 }
                 printf("%s | ", receivedBytes->data);
                 Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
@@ -219,7 +219,7 @@ void print_files(int rsocket)
         case END:
             Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
             sendMessage(rsocket, msg);
-            printf("-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
+            printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
             free(receivedBytes);
             free(msg);
             return;
