@@ -71,7 +71,7 @@ void download_file(int rsocket, char *filename)
             retries++;
         }
 
-        if (retries >= MAX_RETRIES)
+        if (retries > MAX_RETRIES)
         {
             printf("Servidor não encontrado\n");
             free(msg);
@@ -163,7 +163,7 @@ void print_files(int rsocket)
             retries++;
         }
 
-        if (retries >= MAX_RETRIES)
+        if (retries > MAX_RETRIES)
         {
             printf("Servidor não encontrado\n");
             free(msg);
