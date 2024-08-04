@@ -12,66 +12,72 @@
 #include "message.h"
 #include "./../raw_sockets/sockets.h"
 
-messageQueue *head = NULL;
-messageQueue *tail = NULL;
+/*
+ * Initializes a message queue
+ */
+void initQueue(MessageQueue *queue)
+{
+    queue->head = NULL;
+    queue->tail = NULL;
+}
 
 /*
  * Puts a new message on the queue
  */
-void enqueueMessage(Message *msg)
+void enqueueMessage(MessageQueue *queue, Message *msg)
 {
-  messageQueue *node = malloc(sizeof(messageQueue));
+    MessageNode *node = malloc(sizeof(MessageNode));
+    node->message = msg;
+    node->next = NULL;
 
-  node->message = msg;
-  node->next = NULL;
-
-  if (tail == NULL)
-  {
-    head = tail = node;
-  }
-  else
-  {
-    tail->next = node;
-    tail = node;
-  }
+    if (queue->tail == NULL)
+    {
+        queue->head = queue->tail = node;
+    }
+    else
+    {
+        queue->tail->next = node;
+        queue->tail = node;
+    }
 }
+
 /*
  * Gets a message out of the queue
  */
-Message *dequeueMessage()
+Message *dequeueMessage(MessageQueue *queue)
 {
-  if (head == NULL)
-    return NULL;
+    if (queue->head == NULL)
+        return NULL;
 
-  messageQueue *temp = head;
-  Message *msg = head->message;
-  head = head->next;
-  if (head == NULL)
-    tail = NULL;
-  free(temp);
-  return msg;
+    MessageNode *temp = queue->head;
+    Message *msg = queue->head->message;
+    queue->head = queue->head->next;
+    if (queue->head == NULL)
+        queue->tail = NULL;
+    free(temp);
+    return msg;
 }
 
-Message *peekMessage()
+Message *peekMessage(MessageQueue *queue)
 {
-  if (head == NULL)
-    return NULL;
-  return head->message;
+    if (queue->head == NULL)
+        return NULL;
+    return queue->head->message;
 }
 
-void sendQueue(int sockfd)
+void sendQueue(MessageQueue *queue, int sockfd)
 {
-  messageQueue *temp = head;
-  while (temp != NULL)
-  {
-    int sentBytes = sendMessage(sockfd, temp->message);
-    temp = temp->next;
-  }
+    MessageNode *temp = queue->head;
+    while (temp != NULL)
+    {
+        int sentBytes = sendMessage(sockfd, temp->message);
+        temp = temp->next;
+    }
 }
 
-int isEmpty()
+int isEmpty(MessageQueue *queue)
 {
-  return head == NULL;
+    return queue->head == NULL;
 }
 
 long long timestamp()
@@ -318,6 +324,10 @@ void downloadHandler(Message *receivedBytes, int sockfd)
 
   FILE *file = fopen(filename, "rb");
 
+
+  MessageQueue *queue = malloc(sizeof(MessageQueue));
+  initQueue(queue);
+
   // check file permission
   if (!is_readable_by_others(filename))
   {
@@ -356,7 +366,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
     }
 
     Message *msg = createMessage(bytesRead, sequence % MAX_SEQUENCE, DATA, buff);
-    enqueueMessage(msg);
+    enqueueMessage(queue, msg);
   }
 
   const long long timeoutMillis = 250; // 250ms
@@ -364,16 +374,16 @@ void downloadHandler(Message *receivedBytes, int sockfd)
 
   struct timeval tv = {.tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000};
   setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv); // set new options
-  sendQueue(sockfd);
+  sendQueue(queue, sockfd);
 
-  while (!isEmpty())
+  while (!isEmpty(queue))
   {
     Message *receivedBytes = receiveMessage(sockfd);
 
     if (timestamp() - start > timeoutMillis)
     {
       printf("Timeout\n");
-      sendQueue(sockfd);
+      sendQueue(queue, sockfd);
       start = timestamp();
     }
 
@@ -384,7 +394,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
 
     if (receivedBytes->type == ACK)
     {
-      Message *firstOfWindow = peekMessage();
+      Message *firstOfWindow = peekMessage(queue);
 
       if (firstOfWindow == NULL)
       {
@@ -394,7 +404,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
 
       if (receivedBytes->sequence == firstOfWindow->sequence)
       {
-        dequeueMessage();
+        dequeueMessage(queue);
 
         bytesRead = fread(buff, 1, MAX_DATA_SIZE, file);
 
@@ -405,13 +415,13 @@ void downloadHandler(Message *receivedBytes, int sockfd)
 
         Message *msg = createMessage(bytesRead, sequence % MAX_SEQUENCE, DATA, buff);
         sequence++;
-        enqueueMessage(msg);
+        enqueueMessage(queue, msg);
         sendMessage(sockfd, msg);
       }
     }
     else if (receivedBytes->type == NACK)
     {
-      sendQueue(sockfd);
+      sendQueue(queue, sockfd);
     }
   }
 
@@ -454,6 +464,16 @@ void downloadHandler(Message *receivedBytes, int sockfd)
 
   printf("Arquivo enviado\n");
 
+  // free queue
+  while (!isEmpty(queue))
+  {
+    Message *msg = dequeueMessage(queue);
+    free(msg);
+  }
+  free(queue);
+
+  free(filename);
+  free(msg);
   fclose(file);
 }
 

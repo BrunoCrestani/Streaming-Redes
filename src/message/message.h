@@ -41,19 +41,18 @@ typedef struct message
   uint8_t error;
 } Message;
 
-typedef struct messageQueue
+typedef struct MessageNode
 {
   Message *message;
-  struct messageQueue *next;
+  struct MessageNode *next;
 
-} messageQueue;
+} MessageNode;
 
-void enqueueMessage(Message *msg);
-Message *dequeueMessage();
-Message *peekMessage();
-void sendQueue(int sockfd);
-void printQueue();
-int isEmpty();
+typedef struct MessageQueue {
+  MessageNode *head;
+  MessageNode *tail;
+} MessageQueue;
+
 long long timestamp();
 Message *createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[]);
 int sendMessage(int sockfd, Message *msg);
