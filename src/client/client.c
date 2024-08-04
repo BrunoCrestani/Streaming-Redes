@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include "../raw_sockets/sockets.h"
 #include "../message/message.h"
+
 void appendFile(char *filename, uint8_t *data, uint8_t size)
 {
     FILE *file = fopen(filename, "ab");
@@ -121,25 +122,38 @@ void print_files(int rsocket)
         fprintf(stderr, "Erro ao enviar mensagem");
     }
 
-    long long timeout = 1000; // 1s
-    struct timeval tv = {.tv_sec = timeout / 1000, .tv_usec = (timeout % 1000) * 1000};
+    const long long TIMEOUT = 1000; // 1 second
+    const int MAX_RETRIES = 10;
+
+    struct timeval tv = {.tv_sec = TIMEOUT / 1000, .tv_usec = (TIMEOUT % 1000) * 1000};
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(struct timeval));
+
     long long start = timestamp();
-    int sent_first_byte = 0;
+    int has_sent_first_byte = 0;
+    int retries = 0;
 
     while (1)
     {
         Message *receivedBytes = receiveMessage(rsocket);
 
-        if (timestamp() - start > timeout) // timeout on download
+        if (timestamp() - start > TIMEOUT) // timeout on download
         {
             start = timestamp();
-            if (!sent_first_byte)
+            if (!has_sent_first_byte)
             {
                 printf("Procurando servidor...\n");
-                Message *msg = createMessage(25, 0, LIST, "List all files in public");
+                msg = createMessage(25, 0, LIST, "List all files in public");
                 sendMessage(rsocket, msg);
+                retries++;
             }
+        }
+
+        if (retries >= MAX_RETRIES)
+        {
+            printf("Servidor não encontrado\n");
+            free(msg);
+            free(receivedBytes);
+            return;
         }
 
         if (receivedBytes == NULL)
@@ -147,24 +161,30 @@ void print_files(int rsocket)
             continue;
         }
 
+        retries = 0;
+
         switch (receivedBytes->type)
         {
         case SHOW:
             if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error && receivedBytes->error != 0x00)
             {
-                Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
-                sendMessage(rsocket, nack);
+                msg = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
+                sendMessage(rsocket, msg);
             }
             else
             {
+                if (!has_sent_first_byte) {
+                    printf("-=-=-=-= Arquivos -=-=-=-=\n");
+                }
                 printf("%s\n", receivedBytes->data);
-                Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
-                sent_first_byte = 1;
-                sendMessage(rsocket, ack);
+                msg = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+                has_sent_first_byte = 1;
+                sendMessage(rsocket, msg);
             }
             break;
         case END:
             sendMessage(rsocket, createMessage(13, receivedBytes->sequence, ACK, "Acknowledged"));
+            printf("-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
             return;
             break;
         case ERROR:
@@ -172,6 +192,8 @@ void print_files(int rsocket)
             printf("%s\n", receivedBytes->data);
             return;
         }
+
+        free(receivedBytes);
     }
 
     free(msg);
@@ -214,9 +236,7 @@ int main()
 
             break;
         case 'l':
-            printf("-=-=-=-= Arquivos -=-=-=-=\n");
             print_files(rsocket);
-            printf("-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
             break;
         case 'q':
             return 0;
