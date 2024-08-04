@@ -292,9 +292,9 @@ int is_readable_by_others(const char *path)
   return (st.st_mode & S_IROTH) != 0;
 }
 
-int is_in_public_folder(const char *path)
+int is_in_public_and_is_mp4(const char *path)
 {
-  return strstr(path, "public/") == path;
+  return strstr(path, "public/") == path && strstr(path, ".mp4") != NULL;
 }
 
 int is_disk_full(const char *path)
@@ -344,7 +344,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
     return;
   }
 
-  if (file == NULL || !is_in_public_folder(filename))
+  if (file == NULL || !is_in_public_and_is_mp4(filename))
   {
     fprintf(stderr, "Erro ao abrir arquivo: %s", filename);
 
