@@ -39,6 +39,7 @@ void download_file(int rsocket, char *filename)
     Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, filename);
     long int expectedSequence = 0;
     int sentBytes = sendMessage(rsocket, msg);
+    free(msg);
 
     if (!sentBytes)
     {
@@ -46,7 +47,7 @@ void download_file(int rsocket, char *filename)
     }
 
     const long long TIMEOUT = 350; // 350ms
-    const int MAX_RETRIES = 16; // 16*350ms = 5.6s
+    const int MAX_RETRIES = 16;    // 16*350ms = 5.6s
 
     struct timeval tv = {.tv_sec = TIMEOUT / 1000, .tv_usec = (TIMEOUT % 1000) * 1000};
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(struct timeval));
@@ -67,6 +68,7 @@ void download_file(int rsocket, char *filename)
                 printf("Procurando servidor...\n");
                 Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, filename);
                 sendMessage(rsocket, msg);
+                free(msg);
             }
             retries++;
         }
@@ -94,6 +96,7 @@ void download_file(int rsocket, char *filename)
             {
                 Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
                 sendMessage(rsocket, nack);
+                free(nack);
             }
             else if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
             {
@@ -102,27 +105,32 @@ void download_file(int rsocket, char *filename)
                 expectedSequence++;
                 sent_first_byte = 1;
                 sendMessage(rsocket, ack);
+                free(ack);
             }
             else
             {
                 Message *ack = createMessage(21, (expectedSequence - 1) % MAX_SEQUENCE, ACK, "Out of order message");
                 sendMessage(rsocket, ack);
+                free(ack);
             }
 
             break;
 
         case END:
-            sendMessage(rsocket, createMessage(13, 0, ACK, "Acknowledged"));
+            Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+            sendMessage(rsocket, ack);
+            free(ack);
+            free(receivedBytes);
             return;
             break;
         case ERROR:
             printf("Erro ao baixar arquivo: ");
             printf("%s\n", receivedBytes->data);
+            free(receivedBytes);
             return;
         }
+        free(receivedBytes);
     }
-
-    free(msg);
 
     return;
 }
@@ -131,7 +139,7 @@ void print_files(int rsocket)
 {
     Message *msg = createMessage(25, 0, LIST, "List all files in public");
     int sentBytes = sendMessage(rsocket, msg);
-
+    free(msg);
     if (!sentBytes)
     {
         fprintf(stderr, "Erro ao enviar mensagem");
@@ -183,8 +191,9 @@ void print_files(int rsocket)
         case SHOW:
             if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error && receivedBytes->error != 0x00)
             {
-                msg = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
-                sendMessage(rsocket, msg);
+                Message* nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
+                sendMessage(rsocket, nack);
+                free(nack);
             }
             else
             {
@@ -193,26 +202,29 @@ void print_files(int rsocket)
                     printf("-=-=-=-= Arquivos -=-=-=-=\n");
                 }
                 printf("%s\n", receivedBytes->data);
-                msg = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+                Message* ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
                 has_sent_first_byte = 1;
-                sendMessage(rsocket, msg);
+                sendMessage(rsocket, ack);
+                free(ack);
             }
             break;
         case END:
-            sendMessage(rsocket, createMessage(13, receivedBytes->sequence, ACK, "Acknowledged"));
+            Message* ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+            sendMessage(rsocket, ack);
             printf("-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
+            free(receivedBytes);
+            free(ack);
             return;
             break;
         case ERROR:
             printf("Erro ao listar arquivos: ");
             printf("%s\n", receivedBytes->data);
+            free(receivedBytes);
             return;
         }
 
         free(receivedBytes);
     }
-
-    free(msg);
 
     return;
 }
@@ -237,7 +249,6 @@ int main()
 
     while (1)
     {
-
         switch (option[0])
         {
         case 'b':
@@ -251,7 +262,7 @@ int main()
                 printf("Nome de arquivo inválido\n");
                 break;
             }
-            
+
             remove(filename);
             download_file(rsocket, filename);
             free(filename);
@@ -261,6 +272,7 @@ int main()
             print_files(rsocket);
             break;
         case 'q':
+            free(option);
             return 0;
         default:
             printf("Opção inválida\n");
