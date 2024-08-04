@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+
 #include "message.h"
 #include "./../raw_sockets/sockets.h"
 
@@ -19,7 +20,7 @@ messageQueue *tail = NULL;
  */
 void enqueueMessage(Message *msg)
 {
-  messageQueue *node = (messageQueue *)malloc(sizeof(messageQueue));
+  messageQueue *node = malloc(sizeof(messageQueue));
 
   node->message = msg;
   node->next = NULL;
@@ -68,18 +69,6 @@ void sendQueue(int sockfd)
   }
 }
 
-void printQueue()
-{
-  messageQueue *temp = head;
-  while (temp != NULL)
-  {
-    printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
-    printf("Message: %s\n Sequence: %d\n", temp->message->data, temp->message->sequence);
-    printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
-    temp = temp->next;
-  }
-}
-
 int isEmpty()
 {
   return head == NULL;
@@ -109,32 +98,6 @@ Message *createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t dat
   msg->error = calculateCRC8(data, size);
 
   return msg;
-}
-
-Message *createFakeMessage()
-{
-  Message *msg;
-
-  if (!(msg = malloc(sizeof(Message))))
-    return NULL;
-
-  msg->marker = INIT_MARKER;
-  msg->size = 10;
-  msg->sequence = 0;
-  msg->type = DOWNLOAD;
-  memcpy(msg->data, "README.md", 10);
-  msg->error = calculateCRC8("README.md", 10);
-
-  return msg;
-}
-
-/*
- * Deletes a fully acknowledged message
- */
-void deleteMessage(Message *msg, unsigned int sizeAck)
-{
-  if (sizeAck == msg->size)
-    free(msg);
 }
 
 /*
@@ -202,73 +165,19 @@ uint8_t calculateCRC8(const uint8_t *data, uint8_t len)
 }
 
 /*
- * When an ACK is received, it will
- * call the next  message
- */
-void ackHandler(Message *msg, int sockfd)
-{
-  if (msg == NULL)
-  {
-    printf("NULL message received.\n");
-    return;
-  }
-  printf("Ack received to message ID: %d\n", msg->sequence);
-
-  deleteMessage(msg, msg->size);
-
-  Message *nextMsg = dequeueMessage();
-
-  if (nextMsg != NULL)
-  {
-    int sockfd = 0;
-
-    if (sendMessage(sockfd, nextMsg) == 0)
-    {
-      printf("Next message sent: ID: %d\n", nextMsg->sequence);
-    }
-  }
-}
-
-/*
- * When an NACK is received the frame
- * in which the NACK was found is re-sent
- */
-void nackHandler(Message *msg, int sockfd)
-{
-  if (msg == NULL)
-  {
-    printf("NULL message received.\n");
-    return;
-  }
-
-  printf("NACK received to message ID: %d\n", msg->sequence);
-
-  msg = dequeueMessage();
-
-  if (msg != NULL)
-  {
-    int sockfd = 0;
-
-    if (sendMessage(sockfd, msg) == 0)
-    {
-      printf("Message re-sent: ID: %d\n", msg->sequence);
-    }
-  }
-}
-
-/*
  * When an LIST is received the
  * media array is displayed in the UI
  *
  */
-void listHandler(Message *_, int sockfd)
+void listHandler(int sockfd)
 {
   const char *filepath = "public/";
-
   // stop and wait protocol, so we can send the files one by one
   DIR *d;
   struct dirent *dir;
   d = opendir(filepath);
+
+  Message* msg = malloc(sizeof(Message));
 
   if (!d)
   {
@@ -287,12 +196,12 @@ void listHandler(Message *_, int sockfd)
       continue;
     }
 
-    Message *msg = createMessage(strlen(dir->d_name) + 1, 0, SHOW, strcat(dir->d_name, "\0"));
+    msg = createMessage(strlen(dir->d_name) + 1, 0, SHOW, strcat(dir->d_name, "\0"));
     sendMessage(sockfd, msg);
 
     while (1)
     {
-      Message* receivedBytes = receiveMessage(sockfd);
+      Message *receivedBytes = receiveMessage(sockfd);
 
       if (timestamp() - start > timeoutMillis)
       {
@@ -315,12 +224,11 @@ void listHandler(Message *_, int sockfd)
         sendMessage(sockfd, msg);
       }
     }
-
   }
 
   // send end message
 
-  Message *msg = createMessage(19, 0, END, "Arquivos enviados");
+  msg = createMessage(19, 0, END, "Arquivos enviados");
   sendMessage(sockfd, msg);
   const long long ackLostTimeout = 3000; // 3s
 
@@ -349,7 +257,6 @@ void listHandler(Message *_, int sockfd)
       continue;
     }
 
-    
     if (receivedBytes->type == ACK)
     {
       break;
@@ -475,7 +382,6 @@ void downloadHandler(Message *receivedBytes, int sockfd)
       continue;
     }
 
-
     if (receivedBytes->type == ACK)
     {
       Message *firstOfWindow = peekMessage();
@@ -546,63 +452,9 @@ void downloadHandler(Message *receivedBytes, int sockfd)
     }
   }
 
-
   printf("Arquivo enviado\n");
 
   fclose(file);
-}
-
-/*
- * when a SHOW is received
- *
- */
-void showHandler(Message *msg, int sockfd)
-{
-}
-
-/*
- *
- */
-void fileInfoHandler(Message *msg, int sockfd)
-{
-}
-
-/*
- *
- */
-void dataHandler(Message *msg, int sockfd)
-{
-}
-
-/*
- *
- */
-void endHandler(Message *msg, int sockfd)
-{
-}
-
-/*
- *
- */
-void errorHandler(Message *msg, int sockfd)
-{
-  switch (msg->error)
-  {
-  case ACCESS_DENIED:
-    printf("Acess Denied");
-
-    break;
-  case NOT_FOUND:
-    printf("Not Found");
-
-    break;
-  case DISK_IS_FULL:
-    printf("User's disk is full. free %uMB before trying to download this title again.\n", msg->size);
-
-    break;
-  default:
-    printf("Unknown Error type %u\n", msg->error);
-  }
 }
 
 /*
@@ -614,41 +466,12 @@ void answerHandler(Message *msg, int sockfd)
 {
   switch (msg->type)
   {
-  case ACK:
-    ackHandler(msg, sockfd);
-
-    break;
-  case NACK:
-    nackHandler(msg, sockfd);
-
-    break;
   case LIST:
-    listHandler(msg, sockfd);
+    listHandler(sockfd);
 
     break;
   case DOWNLOAD:
     downloadHandler(msg, sockfd);
-
-    break;
-  case SHOW:
-    showHandler(msg, sockfd);
-
-    break;
-  case FILE_INFO:
-    fileInfoHandler(msg, sockfd);
-
-    break;
-  case DATA:
-    dataHandler(msg, sockfd);
-    ;
-
-    break;
-  case END:
-    endHandler(msg, sockfd);
-
-    break;
-  case ERROR:
-    errorHandler(msg, sockfd);
 
     break;
   default:

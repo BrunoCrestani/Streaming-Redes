@@ -26,8 +26,6 @@ int main()
             continue;
         }
 
-        printf("Mensagem recebida: %s\n", receivedBytes->data);
-
         answerHandler(receivedBytes, rsocket);
     }
 

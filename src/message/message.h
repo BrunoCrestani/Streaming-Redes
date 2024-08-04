@@ -48,53 +48,19 @@ typedef struct messageQueue
 
 } messageQueue;
 
-/*
- * Creates a message
- */
-Message *createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t *data);
-
-Message *createFakeMessage();
-
-/*
- * CRC-8
- */
-uint8_t calculateCRC8(const uint8_t *data, uint8_t len);
-
-/*
- * Deletes a fully acknowledged message
- */
-void deleteMessage(Message *msg, unsigned int sizeAck);
-
-/*
- * The process of sending a
- * message from the server to the user
- */
-int sendMessage(int sockfd, Message *msg);
-
-/*
- * The process of recieving a message from the user
- * to the server
- */
-Message *receiveMessage(int sockfd);
-
-int isEmpty();
-void printQueue();
-
-/*
- * Puts the messages type to a switchCase that
- * will direct the message into its own functions
- * handler
- */
-void answerHandler(Message *msg, int sockfd);
-
-/*
- * Enqueues a message to the messageQueue
- */
 void enqueueMessage(Message *msg);
 Message *dequeueMessage();
 Message *peekMessage();
 void sendQueue(int sockfd);
-
+void printQueue();
+int isEmpty();
 long long timestamp();
+Message *createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[]);
+int sendMessage(int sockfd, Message *msg);
+Message *receiveMessage(int sockfd);
+uint8_t calculateCRC8(const uint8_t *data, uint8_t len);
+void listHandler(int sockfd);
+void downloadHandler(Message *receivedBytes, int sockfd);
+void answerHandler(Message *msg, int sockfd);
 
 #endif
