@@ -17,6 +17,20 @@
 #include <sys/stat.h>
 #include "../raw_sockets/sockets.h"
 #include "../message/message.h"
+void appendFile(char *filename, uint8_t *data, uint8_t size)
+{
+    FILE *file = fopen(filename, "ab");
+
+    if (file == NULL)
+    {
+        perror("Erro ao abrir arquivo");
+        return;
+    }
+
+    fwrite(data, 1, size, file);
+
+    fclose(file);
+}
 
 void download_file(int rsocket, char *filename)
 {
@@ -35,8 +49,6 @@ void download_file(int rsocket, char *filename)
     setsockopt(rsocket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(struct timeval));
     long long start = timestamp();
     int sent_first_byte = 0;
-
-    FILE *file = fopen(filename, "wb");
 
     while (1)
     {
@@ -66,9 +78,9 @@ void download_file(int rsocket, char *filename)
                 Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
                 sendMessage(rsocket, nack);
             }
-            else if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
+             else if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
             {
-                fwrite(receivedBytes->data, 1, receivedBytes->size, file);
+                appendFile(filename, receivedBytes->data, receivedBytes->size);
                 Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
                 expectedSequence++;
                 sent_first_byte = 1;
@@ -95,7 +107,6 @@ void download_file(int rsocket, char *filename)
     }  
 
     free(msg);
-    fclose(file);
 
     return;
 }
