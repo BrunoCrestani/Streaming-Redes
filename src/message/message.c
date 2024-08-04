@@ -246,7 +246,9 @@ void listHandler(int sockfd)
       continue;
     }
 
-    Message *fileInfo = createMessage(sizeof(Media), 0, FILE_INFO, (uint8_t *)media);
+    char* media_str = media_to_string(media);
+    Message *fileInfo = createMessage(strlen(media_str), 0, FILE_INFO, media_str);
+    sendMessage(sockfd, fileInfo);
 
     while (1)
     {
@@ -254,6 +256,7 @@ void listHandler(int sockfd)
 
       if (timestamp() - start > timeoutMillis)
       {
+        printf("Timeout\n");
         sendMessage(sockfd, fileInfo);
         start = timestamp();
       }
@@ -281,7 +284,6 @@ void listHandler(int sockfd)
   }
 
   // send end message
-
   Message *msg = createMessage(19, 0, END, "Arquivos enviados");
   sendMessage(sockfd, msg);
 

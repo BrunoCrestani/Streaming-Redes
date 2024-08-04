@@ -1,5 +1,7 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "media.h"
 
 Media *media_new()
@@ -20,11 +22,21 @@ int media_stat(const char *path, Media *media)
   {
     return -1;
   }
-  media->user_id = st.st_uid;
-  media->group_id = st.st_gid;
   media->size = st.st_size;
-  media->last_access = st.st_atime;
   media->last_modified = st.st_mtime;
-  media->last_status_change = st.st_ctime;
+
   return 0;
+}
+
+char* media_to_string(Media *media)
+{
+  char *str = malloc(63);
+  memset(str, '\0', 63);
+ 
+  // convert last modified to DD/MM/YYYY HH:MM:SS
+  char last_modified[20];
+  strftime(last_modified, 20, "%d/%m/%Y %H:%M:%S", localtime(&media->last_modified));
+
+  sprintf(str, "%ld kB | %s", media->size / 1024, last_modified);
+  return str;
 }
