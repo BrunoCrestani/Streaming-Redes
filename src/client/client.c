@@ -246,8 +246,14 @@ int main()
 
             printf("Digite o nome do arquivo: ");
             scanf("\n%s", filename);
+            if (strlen(filename) < 6 || strcmp(filename + strlen(filename) - 4, ".mp4") != 0)
+            {
+                printf("Nome de arquivo inválido\n");
+                break;
+            }
+            
+            remove(filename);
             download_file(rsocket, filename);
-
             free(filename);
 
             break;
