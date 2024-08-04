@@ -91,11 +91,12 @@ long long timestamp()
  */
 Message *createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t data[])
 {
-  Message *msg;
+  Message *msg = malloc(sizeof(Message));
 
-  if (!(msg = malloc(sizeof(Message))))
+  if (!msg)
     return NULL;
 
+  memset(msg, 0, sizeof(Message));
   msg->marker = INIT_MARKER;
   msg->size = size;
   msg->sequence = sequence;
@@ -134,7 +135,8 @@ Message *receiveMessage(int sockfd)
 
   ssize_t receivedBytes = recv(sockfd, buffer, sizeof(Message), 0);
 
-  Message *msg = (Message *)malloc(sizeof(Message));
+  Message *msg = malloc(sizeof(Message));
+  memset(msg, 0, sizeof(Message));
 
   if (receivedBytes <= 0 || msg == NULL)
     return NULL;
@@ -371,7 +373,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   }
 
   const long long timeoutMillis = 250; // 250ms
-  const int MAX_RETRIES = 24; // 250ms * 24 = 6s
+  const int MAX_RETRIES = 24;          // 250ms * 24 = 6s
 
   struct timeval tv = {.tv_sec = timeoutMillis / 1000, .tv_usec = (timeoutMillis % 1000) * 1000};
   setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof tv); // set new options
