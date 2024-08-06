@@ -118,6 +118,7 @@ void download_file(int rsocket, char *filename)
             break;
 
         case END:
+            ;
             Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
             sendMessage(rsocket, ack);
             free(ack);
@@ -217,6 +218,7 @@ void print_files(int rsocket)
             }
             break;
         case END:
+            ;
             Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
             sendMessage(rsocket, msg);
             printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
@@ -260,6 +262,7 @@ int main()
         switch (option[0])
         {
         case 'b':
+            ;
             char *filename = malloc(FILENAME_MAX);
             memset(filename, '\0', FILENAME_MAX);
 
