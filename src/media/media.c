@@ -37,6 +37,6 @@ char* media_to_string(Media *media)
   char last_modified[20];
   strftime(last_modified, 20, "%d/%m/%Y %H:%M:%S", localtime(&media->last_modified));
 
-  sprintf(str, "%ld kB | %s", media->size / 1024, last_modified);
+  sprintf(str, "%ld kB | %s", media->size / 1000, last_modified);
   return str;
 }

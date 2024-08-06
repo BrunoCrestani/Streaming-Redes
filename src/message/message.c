@@ -333,6 +333,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
 
     if (timestamp() - start > TIMEOUT)
     {
+      printf("Timeout\n");
       sendQueue(queue, sockfd);
       start = timestamp();
       retries++;
