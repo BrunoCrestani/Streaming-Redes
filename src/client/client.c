@@ -11,7 +11,6 @@
 #include <net/if.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <unistd.h>
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -32,6 +31,46 @@ void appendFile(char *filename, uint8_t *data, uint8_t size)
     fwrite(data, 1, size, file);
 
     fclose(file);
+}
+
+void handle_data(int rsocket, Message *receivedBytes, long int *expectedSequence, int *sent_first_byte, char *filename)
+{
+    if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error && receivedBytes->error != 0x00)
+    {
+        Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
+        sendMessage(rsocket, nack);
+        free(nack);
+    }
+    else if (receivedBytes->sequence == (*expectedSequence % MAX_SEQUENCE))
+    {
+        appendFile(filename, receivedBytes->data, receivedBytes->size);
+        Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+        (*expectedSequence)++;
+        *sent_first_byte = 1;
+        sendMessage(rsocket, ack);
+        free(ack);
+    }
+    else
+    {
+        Message *ack = createMessage(21, (*expectedSequence - 1) % MAX_SEQUENCE, ACK, "Out of order message");
+        sendMessage(rsocket, ack);
+        free(ack);
+    }
+}
+
+void handle_end(int rsocket, Message *receivedBytes)
+{
+    Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+    sendMessage(rsocket, ack);
+    free(ack);
+    free(receivedBytes);
+}
+
+void handle_error(Message *receivedBytes)
+{
+    printf("Erro ao baixar arquivo: ");
+    printf("%s\n", receivedBytes->data);
+    free(receivedBytes);
 }
 
 void download_file(int rsocket, char *filename)
@@ -77,7 +116,6 @@ void download_file(int rsocket, char *filename)
         if (retries > MAX_RETRIES)
         {
             printf("Servidor não encontrado\n");
-            free(msg);
             free(receivedBytes);
             remove(filename);
             return;
@@ -93,42 +131,13 @@ void download_file(int rsocket, char *filename)
         switch (receivedBytes->type)
         {
         case DATA:
-            if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error && receivedBytes->error != 0x00)
-            {
-                Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
-                sendMessage(rsocket, nack);
-                free(nack);
-            }
-            else if (receivedBytes->sequence == (expectedSequence % MAX_SEQUENCE))
-            {
-                appendFile(filename, receivedBytes->data, receivedBytes->size);
-                Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
-                expectedSequence++;
-                sent_first_byte = 1;
-                sendMessage(rsocket, ack);
-                free(ack);
-            }
-            else
-            {
-                Message *ack = createMessage(21, (expectedSequence - 1) % MAX_SEQUENCE, ACK, "Out of order message");
-                sendMessage(rsocket, ack);
-                free(ack);
-            }
-
+            handle_data(rsocket, receivedBytes, &expectedSequence, &sent_first_byte, filename);
             break;
-
         case END:
-            ;
-            Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
-            sendMessage(rsocket, ack);
-            free(ack);
-            free(receivedBytes);
+            handle_end(rsocket, receivedBytes);
             return;
-            break;
         case ERROR:
-            printf("Erro ao baixar arquivo: ");
-            printf("%s\n", receivedBytes->data);
-            free(receivedBytes);
+            handle_error(receivedBytes);
             return;
         }
         free(receivedBytes);
@@ -137,7 +146,52 @@ void download_file(int rsocket, char *filename)
     return;
 }
 
-void print_files(int rsocket)
+void handle_file_info(int rsocket, Message *receivedBytes)
+{
+    printf("%s\n", receivedBytes->data);
+    Message *msg = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+    sendMessage(rsocket, msg);
+    free(msg);
+}
+
+void handle_show(int rsocket, Message *receivedBytes, int *has_sent_first_byte)
+{
+    if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error && receivedBytes->error != 0x00)
+    {
+        Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
+        sendMessage(rsocket, nack);
+        free(nack);
+    }
+    else
+    {
+        if (!*has_sent_first_byte)
+        {
+            printf("-=-=-=-=-=-=-=-=-=- Arquivos =-=-=-=-=-=-=-=-=-=\n");
+        }
+        printf("%s | ", receivedBytes->data);
+        Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+        *has_sent_first_byte = 1;
+        sendMessage(rsocket, ack);
+        free(ack);
+    }
+}
+
+void handle_end_list(int rsocket, Message *receivedBytes)
+{
+    Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+    sendMessage(rsocket, ack);
+    printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
+    free(receivedBytes);
+}
+
+void handle_error_list(Message *receivedBytes)
+{
+    printf("Erro ao listar arquivos: ");
+    printf("%s\n", receivedBytes->data);
+    free(receivedBytes);
+}
+
+void handle_list_option(int rsocket)
 {
     Message *msg = createMessage(25, 0, LIST, "List all files in public");
     int sentBytes = sendMessage(rsocket, msg);
@@ -176,7 +230,6 @@ void print_files(int rsocket)
         if (retries > MAX_RETRIES)
         {
             printf("Servidor não encontrado\n");
-            free(msg);
             free(receivedBytes);
             return;
         }
@@ -191,45 +244,16 @@ void print_files(int rsocket)
         switch (receivedBytes->type)
         {
         case FILE_INFO:
-            printf("%s\n", receivedBytes->data);
-            Message *msg = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
-            sendMessage(rsocket, msg);
-            free(msg);
-
+            handle_file_info(rsocket, receivedBytes);
             break;
         case SHOW:
-            if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error && receivedBytes->error != 0x00)
-            {
-                Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
-                sendMessage(rsocket, nack);
-                free(nack);
-            }
-            else
-            {
-                if (!has_sent_first_byte)
-                {
-                    printf("-=-=-=-=-=-=-=-=-=- Arquivos =-=-=-=-=-=-=-=-=-=\n");
-                }
-                printf("%s | ", receivedBytes->data);
-                Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
-                has_sent_first_byte = 1;
-                sendMessage(rsocket, ack);
-                free(ack);
-            }
+            handle_show(rsocket, receivedBytes, &has_sent_first_byte);
             break;
         case END:
-            ;
-            Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
-            sendMessage(rsocket, msg);
-            printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
-            free(receivedBytes);
-            free(msg);
+            handle_end_list(rsocket, receivedBytes);
             return;
-            break;
         case ERROR:
-            printf("Erro ao listar arquivos: ");
-            printf("%s\n", receivedBytes->data);
-            free(receivedBytes);
+            handle_error_list(receivedBytes);
             return;
         }
 
@@ -237,6 +261,26 @@ void print_files(int rsocket)
     }
 
     return;
+}
+
+void handle_download_option(int rsocket)
+{
+    char *filename = malloc(FILENAME_MAX);
+    memset(filename, '\0', FILENAME_MAX);
+
+    printf("Digite o nome do arquivo: ");
+    scanf("\n%s", filename);
+    filename = realloc(filename, strlen(filename) + 1);
+    if (strlen(filename) < 9 || strcmp(filename + strlen(filename) - 4, ".mp4") != 0)
+    {
+        printf("Nome de arquivo inválido\n");
+        free(filename);
+        return;
+    }
+
+    remove(filename);
+    download_file(rsocket, filename);
+    free(filename);
 }
 
 int main()
@@ -262,27 +306,10 @@ int main()
         switch (option[0])
         {
         case 'b':
-            ;
-            char *filename = malloc(FILENAME_MAX);
-            memset(filename, '\0', FILENAME_MAX);
-
-            printf("Digite o nome do arquivo: ");
-            scanf("\n%s", filename);
-            filename = realloc(filename, strlen(filename) + 1);
-            if (strlen(filename) < 9 || strcmp(filename + strlen(filename) - 4, ".mp4") != 0)
-            {
-                printf("Nome de arquivo inválido\n");
-                free(filename);
-                break;
-            }
-
-            remove(filename);
-            download_file(rsocket, filename);
-            free(filename);
-
+            handle_download_option(rsocket);
             break;
         case 'l':
-            print_files(rsocket);
+            handle_list_option(rsocket);
             break;
         case 'q':
             free(option);
