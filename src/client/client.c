@@ -283,10 +283,15 @@ void handle_download_option(int rsocket)
     free(filename);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    int rsocket = rawSocketCreator("enp3s0f3u3");
-
+    if (argc != 2)
+    {
+        fprintf(stderr, "Uso: %s <interface>\n", argv[0]);
+        return 1;
+    }
+    
+    int rsocket = rawSocketCreator(argv[1]);
     if (rsocket == -1)
     {
         fprintf(stderr, "Erro ao criar socket\n");
