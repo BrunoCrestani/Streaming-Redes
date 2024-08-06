@@ -193,7 +193,7 @@ void listHandler(int sockfd)
     Media *media = media_new();
 
     char *path = malloc(strlen(filepath) + strlen(dir->d_name) + 1);
-    memset(path, '\0', strlen(filepath) + strlen(dir->d_name) + 1);
+    memset(path, 0, strlen(filepath) + strlen(dir->d_name) + 1);
     strcat(path, filepath);
     strcat(path, dir->d_name);
 

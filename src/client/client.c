@@ -252,7 +252,7 @@ int main()
     printf("sair (q)\n");
     printf("\nOpção: ");
 
-    char *option = malloc(2);
+    char *option = malloc(2 * sizeof(char));
     scanf("%s", option);
 
     while (1)

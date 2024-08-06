@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include "queue.h"
 
@@ -60,6 +61,11 @@ void sendQueue(MessageQueue *queue, int sockfd)
   while (temp != NULL)
   {
     int sentBytes = sendMessage(sockfd, temp->message);
+    if (sentBytes == -1)
+    {
+      fprintf(stderr, "Erro ao enviar mensagem\n");
+      continue;
+    }
     temp = temp->next;
   }
 }

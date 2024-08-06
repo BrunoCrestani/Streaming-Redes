@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include "sockets.h"
 
-unsigned int rawSocketCreator(char* network_interface_name) { 
+int rawSocketCreator(char* network_interface_name) { 
 
   // Cria arquivo para o socket sem qualquer protocolo 
 
@@ -63,6 +63,6 @@ unsigned int rawSocketCreator(char* network_interface_name) {
   return rsocket;
 }
 
-unsigned int rawSocketSend(int rsocket, const void *buffer, unsigned int length, int flags){
-  return write(rsocket, buffer, length);
+int rawSocketSend(int rsocket, const void *buffer, unsigned int length, int flags){
+  return (int) write(rsocket, buffer, length);
 }

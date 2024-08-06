@@ -23,7 +23,8 @@ SERVER_OBJ_FILES := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SERVER_SRC_FILE
 CLIENT_OBJ_FILES := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(CLIENT_SRC_FILES))
 RAW_SOCKETS_OBJ_FILES := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(RAW_SOCKETS_SRC_FILES))
 ALL_SRC_OBJ_FILES := $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(ALL_SRC_FILES))
-
+DISTFILES := $(shell git ls-files)
+DISTDIR := 't1-redes'
 
 # Executables
 SERVER_EXECUTABLE = server
@@ -59,9 +60,8 @@ purge: clean
 # Distribution target
 dist: purge
 	@echo "Creating distribution archive ($(DISTDIR).tar)..."
-	@ln -s . $(DISTDIR)
-	@tar -cvf $(DISTDIR).tar $(addprefix ./$(DISTDIR)/, $(DISTFILES))
-	@rm -f $(DISTDIR)
+	@tar -cf $(DISTDIR).tar $(DISTFILES)
+  
 
 # Phony targets
 .PHONY: all clean purge dist
