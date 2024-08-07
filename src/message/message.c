@@ -384,9 +384,10 @@ void downloadHandler(Message *receivedBytes, int sockfd)
         }
 
         Message *msg = createMessage(bytesRead, sequence % MAX_SEQUENCE, DATA, buff);
-        sequence++;
+        printf("Movendo a janela, enviando o pacote %d\n", msg->sequence);
         enqueueMessage(queue, msg);
         sendMessage(sockfd, msg);
+        sequence++;
       }
     }
     else if (receivedBytes->type == NACK)
