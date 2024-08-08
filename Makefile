@@ -1,7 +1,7 @@
 # Compiler
 CC = gcc
 # Compiler flags
-CFLAGS = -O0
+CFLAGS = -O3 -Wall -Wextra
 # Linker flags
 LFLAGS = -lm
 

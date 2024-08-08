@@ -52,7 +52,7 @@ int sendMessage(int sockfd, Message *msg)
   size_t messageSize = sizeof(Message) - MAX_DATA_SIZE + msg->size;
   uint8_t buffer[messageSize];
   memcpy(buffer, msg, messageSize);
-  unsigned int sentBytes = rawSocketSend(sockfd, buffer, messageSize, 0);
+  unsigned int sentBytes = rawSocketSend(sockfd, buffer, messageSize);
 
   return sentBytes;
 }
@@ -91,7 +91,7 @@ uint8_t calculateCRC8(const uint8_t *data, uint8_t len)
     crc ^= data[i];
     for (uint8_t j = 0; j < 8; j++)
     {
-      if (crc & 0x80 != 0)
+      if ((crc & 0x80) != 0)
       {
         // Example
         crc = (uint8_t)((crc << 1) ^ 0x31);
@@ -175,8 +175,6 @@ void listHandler(int sockfd)
   const long long timeoutMillis = 250; // 250ms
   const int MAX_RETRIES = 24;          // 250ms * 24 = 6s
 
-  long long start = timestamp();
-
   while ((dir = readdir(d)) != NULL)
   {
     if (strlen(dir->d_name) < 6 || dir->d_type != DT_REG)
@@ -184,7 +182,7 @@ void listHandler(int sockfd)
       continue;
     }
 
-    Message *msg = createMessage(strlen(dir->d_name) + 1, 0, SHOW, strcat(dir->d_name, "\0"));
+    Message *msg = createMessage(strlen(dir->d_name) + 1, 0, SHOW, (uint8_t *)strcat(dir->d_name, "\0"));
 
     sendMessage(sockfd, msg);
     send_message_stop_and_wait(sockfd, msg, timeoutMillis, MAX_RETRIES);
@@ -205,7 +203,7 @@ void listHandler(int sockfd)
     }
 
     char *media_str = media_to_string(media);
-    Message *fileInfo = createMessage(strlen(media_str), 0, FILE_INFO, media_str);
+    Message *fileInfo = createMessage(strlen(media_str), 0, FILE_INFO, (uint8_t *)media_str);
     sendMessage(sockfd, fileInfo);
     send_message_stop_and_wait(sockfd, fileInfo, timeoutMillis, MAX_RETRIES);
 
@@ -216,7 +214,7 @@ void listHandler(int sockfd)
   }
 
   // send end message
-  Message *msg = createMessage(18, 0, END, "Arquivos enviados");
+  Message *msg = createMessage(18, 0, END, (uint8_t *)"Arquivos enviados");
   sendMessage(sockfd, msg);
 
   send_message_stop_and_wait(sockfd, msg, timeoutMillis, MAX_RETRIES);
@@ -267,7 +265,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   memset(filename, '\0', receivedBytes->size + strlen(filepath) + 1);
 
   strcat(filename, filepath);
-  strcat(filename, receivedBytes->data);
+  strcat(filename, (char *)receivedBytes->data);
 
   FILE *file = fopen(filename, "rb");
 
@@ -277,14 +275,14 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   // check file permission
   if (!is_readable_by_others(filename))
   {
-    sendMessage(sockfd, createMessage(14, ACCESS_DENIED, ERROR, "Acesso negado"));
+    sendMessage(sockfd, createMessage(14, ACCESS_DENIED, ERROR, (uint8_t *)"Acesso negado"));
 
     return;
   }
 
   if (is_disk_full(filepath))
   {
-    sendMessage(sockfd, createMessage(12, DISK_IS_FULL, ERROR, "Disco cheio"));
+    sendMessage(sockfd, createMessage(12, DISK_IS_FULL, ERROR, (uint8_t *)"Disco cheio"));
 
     return;
   }
@@ -293,12 +291,12 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   {
     fprintf(stderr, "Erro ao abrir arquivo: %s", filename);
 
-    sendMessage(sockfd, createMessage(24, NOT_FOUND, ERROR, "Arquivo não encontrado"));
+    sendMessage(sockfd, createMessage(24, NOT_FOUND, ERROR, (uint8_t *)"Arquivo não encontrado"));
 
     return;
   }
 
-  char buff[MAX_DATA_SIZE];
+  uint8_t buff[MAX_DATA_SIZE];
   memset(buff, 0, MAX_DATA_SIZE);
 
   size_t bytesRead = 0;
@@ -398,7 +396,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
     }
   }
 
-  Message *msg = createMessage(18, 0, END, "Arquivos enviados");
+  Message *msg = createMessage(18, 0, END, (uint8_t *)"Arquivos enviados");
   sendMessage(sockfd, msg);
 
   send_message_stop_and_wait(sockfd, msg, TIMEOUT, MAX_RETRIES);
