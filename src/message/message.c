@@ -45,6 +45,7 @@ Message *createMessage(uint8_t size, uint8_t sequence, uint8_t type, uint8_t dat
  */
 int sendMessage(int sockfd, Message *msg)
 {
+  // usleep(10);
   if (msg == NULL)
     return -1;
 
@@ -215,7 +216,7 @@ void listHandler(int sockfd)
   }
 
   // send end message
-  Message *msg = createMessage(19, 0, END, "Arquivos enviados");
+  Message *msg = createMessage(18, 0, END, "Arquivos enviados");
   sendMessage(sockfd, msg);
 
   send_message_stop_and_wait(sockfd, msg, timeoutMillis, MAX_RETRIES);
@@ -276,14 +277,14 @@ void downloadHandler(Message *receivedBytes, int sockfd)
   // check file permission
   if (!is_readable_by_others(filename))
   {
-    sendMessage(sockfd, createMessage(24, ACCESS_DENIED, ERROR, "Acesso negado"));
+    sendMessage(sockfd, createMessage(14, ACCESS_DENIED, ERROR, "Acesso negado"));
 
     return;
   }
 
   if (is_disk_full(filepath))
   {
-    sendMessage(sockfd, createMessage(24, DISK_IS_FULL, ERROR, "Disco cheio"));
+    sendMessage(sockfd, createMessage(12, DISK_IS_FULL, ERROR, "Disco cheio"));
 
     return;
   }
@@ -397,7 +398,7 @@ void downloadHandler(Message *receivedBytes, int sockfd)
     }
   }
 
-  Message *msg = createMessage(19, 0, END, "Arquivos enviados");
+  Message *msg = createMessage(18, 0, END, "Arquivos enviados");
   sendMessage(sockfd, msg);
 
   send_message_stop_and_wait(sockfd, msg, TIMEOUT, MAX_RETRIES);

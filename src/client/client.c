@@ -269,7 +269,14 @@ void handle_download_option(int rsocket)
     memset(filename, '\0', FILENAME_MAX);
 
     printf("Digite o nome do arquivo: ");
-    scanf("\n%s", filename);
+    int r = scanf("\n%s", filename);
+
+    if (r == EOF)
+    {
+        free(filename);
+        return;
+    }
+
     filename = realloc(filename, strlen(filename) + 1);
     if (strlen(filename) < 9 || strcmp(filename + strlen(filename) - 4, ".mp4") != 0)
     {
@@ -304,7 +311,13 @@ int main(int argc, char *argv[])
     printf("\nOpção: ");
 
     char *option = malloc(2 * sizeof(char));
-    scanf("%s", option);
+    int r = scanf("%s", option);
+
+    if (r == EOF)
+    {
+        free(option);
+        return 0;
+    }
 
     while (1)
     {
@@ -324,7 +337,12 @@ int main(int argc, char *argv[])
             break;
         }
         printf("\nOpção: ");
-        scanf("\n%s", option);
+        int r = scanf("\n%s", option);
+        if (r == EOF)
+        {
+            free(option);
+            return 0;
+        }
     }
 
     return 0;
