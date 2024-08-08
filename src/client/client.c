@@ -37,14 +37,14 @@ void handle_data(int rsocket, Message *receivedBytes, long int *expectedSequence
 {
     if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error && receivedBytes->error != 0x00)
     {
-        Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
+        Message *nack = createMessage(17, receivedBytes->sequence, NACK, (uint8_t *)"Not Acknowledged");
         sendMessage(rsocket, nack);
         free(nack);
     }
     else if (receivedBytes->sequence == (*expectedSequence % MAX_SEQUENCE))
     {
         appendFile(filename, receivedBytes->data, receivedBytes->size);
-        Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+        Message *ack = createMessage(13, receivedBytes->sequence, ACK, (uint8_t *)"Acknowledged");
         (*expectedSequence)++;
         *sent_first_byte = 1;
         sendMessage(rsocket, ack);
@@ -52,7 +52,7 @@ void handle_data(int rsocket, Message *receivedBytes, long int *expectedSequence
     }
     else
     {
-        Message *ack = createMessage(21, (*expectedSequence - 1) % MAX_SEQUENCE, ACK, "Out of order message");
+        Message *ack = createMessage(21, (*expectedSequence - 1) % MAX_SEQUENCE, ACK, (uint8_t *)"Out of order message");
         sendMessage(rsocket, ack);
         free(ack);
     }
@@ -60,7 +60,7 @@ void handle_data(int rsocket, Message *receivedBytes, long int *expectedSequence
 
 void handle_end(int rsocket, Message *receivedBytes)
 {
-    Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+    Message *ack = createMessage(13, receivedBytes->sequence, ACK, (uint8_t *)"Acknowledged");
     sendMessage(rsocket, ack);
     free(ack);
     free(receivedBytes);
@@ -76,7 +76,7 @@ void handle_error(Message *receivedBytes)
 void download_file(int rsocket, char *filename)
 {
     printf("Baixando arquivo %s...\n", filename);
-    Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, filename);
+    Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, (uint8_t *)filename);
     long int expectedSequence = 0;
     int sentBytes = sendMessage(rsocket, msg);
     free(msg);
@@ -106,7 +106,7 @@ void download_file(int rsocket, char *filename)
             if (expectedSequence == 0 && !sent_first_byte)
             {
                 printf("Procurando servidor...\n");
-                Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, filename);
+                Message *msg = createMessage(strlen(filename), 0, DOWNLOAD, (uint8_t *)filename);
                 sendMessage(rsocket, msg);
                 free(msg);
             }
@@ -149,7 +149,7 @@ void download_file(int rsocket, char *filename)
 void handle_file_info(int rsocket, Message *receivedBytes)
 {
     printf("%s\n", receivedBytes->data);
-    Message *msg = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+    Message *msg = createMessage(13, receivedBytes->sequence, ACK, (uint8_t *)"Acknowledged");
     sendMessage(rsocket, msg);
     free(msg);
 }
@@ -158,7 +158,7 @@ void handle_show(int rsocket, Message *receivedBytes, int *has_sent_first_byte)
 {
     if (calculateCRC8(receivedBytes->data, receivedBytes->size) != receivedBytes->error && receivedBytes->error != 0x00)
     {
-        Message *nack = createMessage(17, receivedBytes->sequence, NACK, "Not Acknowledged");
+        Message *nack = createMessage(17, receivedBytes->sequence, NACK, (uint8_t *)"Not Acknowledged");
         sendMessage(rsocket, nack);
         free(nack);
     }
@@ -169,7 +169,7 @@ void handle_show(int rsocket, Message *receivedBytes, int *has_sent_first_byte)
             printf("-=-=-=-=-=-=-=-=-=- Arquivos =-=-=-=-=-=-=-=-=-=\n");
         }
         printf("%s | ", receivedBytes->data);
-        Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+        Message *ack = createMessage(13, receivedBytes->sequence, ACK, (uint8_t *)"Acknowledged");
         *has_sent_first_byte = 1;
         sendMessage(rsocket, ack);
         free(ack);
@@ -178,7 +178,7 @@ void handle_show(int rsocket, Message *receivedBytes, int *has_sent_first_byte)
 
 void handle_end_list(int rsocket, Message *receivedBytes)
 {
-    Message *ack = createMessage(13, receivedBytes->sequence, ACK, "Acknowledged");
+    Message *ack = createMessage(13, receivedBytes->sequence, ACK, (uint8_t *)"Acknowledged");
     sendMessage(rsocket, ack);
     printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
     free(receivedBytes);
@@ -193,7 +193,7 @@ void handle_error_list(Message *receivedBytes)
 
 void handle_list_option(int rsocket)
 {
-    Message *msg = createMessage(25, 0, LIST, "List all files in public");
+    Message *msg = createMessage(25, 0, LIST, (uint8_t *)"List all files in public");
     int sentBytes = sendMessage(rsocket, msg);
     free(msg);
     if (!sentBytes)
@@ -221,7 +221,7 @@ void handle_list_option(int rsocket)
             if (!has_sent_first_byte)
             {
                 printf("Procurando servidor...\n");
-                msg = createMessage(25, 0, LIST, "List all files in public");
+                msg = createMessage(25, 0, LIST, (uint8_t *)"List all files in public");
                 sendMessage(rsocket, msg);
             }
             retries++;
@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Uso: %s <interface>\n", argv[0]);
         return 1;
     }
-    
+
     int rsocket = rawSocketCreator(argv[1]);
     if (rsocket == -1)
     {
